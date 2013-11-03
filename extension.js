@@ -4,35 +4,65 @@
   For more information please visit our docs site: http://docs.crossrider.com
 ****************** *******************************************************************/
 
+/*
+ to do:
+ clean up code
+ add comments
+ add settable variables (more)
+ search
+ set search domain
+ make boomarks clickable
+ make recent bookmarks dynamic
+ make work in frames
+
+*/
+
+var toolbarColor="#8C2633"; // Colour: Maroon
+							// Pantone value: Pantone 202C
+var toolbarHeight="24px";   // height of tool bar in pixels
+									  
+									  
+var recentBMColor="#5e99aa"; // Colour: Blue
+						     // Pantone value: Pantone 549C
+var shieldImage="";
+var bookmarkBackground="#D9C89E"; // main bookmarks
+						   // shown when shield is clicked
+						   // pantone 7501C  sand
+			
+var mainBMHeight="600px"	;
+var mainBMWidth="35%"	;
+			
+			
+			
+			
+									  
 appAPI.ready(function($) {
 	var bookmarksSet=0;
 	var recentBookmarkURLs=[];
 	console.log("extension loaded");
     // Place your code here (you can also define new functions above this scope)
     // The $ object is the extension's jQuery object
- 
+  /*
+  test button
+  	'<span id="bm-main">'+
+				
+					'<button id="bm-1" title="Add SMU BM" class="left">Ad12d SMU BM</button>' +
+			'</span>'+
+  
+  */
     	// Add a toolbar 
-	$('<div id="xr-crossrider-example">' +
-			'<span id="xr-toolbar">' +
+	$('<div id="toolbarContainer">' +
+			'<span id="toolbarSpan">' +
 				'<span id="smu-shield">'+
 					'<button id="shield" title="SHIELD" class="left">SMU shield</button>' +
 				'</span>'+
-				'<span id="bm-main">'+
+			
+					
+					'<span id="bm-recent-container">'+
+					'</span>'+
+			
+			
 				
-					'<button id="bm-1" title="Add SMU BM" class="left">Ad12d SMU BM</button>' +
-					'</span>'+
-					'<span id="bm-recent">'+
-					'</span>'+
-				'<span id="xr-tabs">' +
-					'<button id="xr-allTabs" title="Color all tabs red" class="left">All Tabs v1.1</button>' +
-					'<button id="xr-allOtherTabs" title="Color all other tabs blue" class="middle">All Other Tabs</button>' +
-					'<button id="xr-activeTab" title="Color active tab green" class="right">Active Tab</button>' +
-				'</span>' +
-				'<span id="xr-currentTabs">' +
-					'<button id="xr-currentTabIframes" title="Color all iframe on current tab yellow" class="single">Current Tab Iframes</button>' +
-					'<button id="xr-currentTabWindow"  title="Send message via parent window" class="single">Current Tab Window</button>' +
-				'</span>' +
-				'<button id="xr-removeListeners" title="Remove all listeners" class="single">Remove Listeners</button>' +
 			'</span>' +
 		'</div>')
 		.prependTo('body');
@@ -43,14 +73,18 @@ appAPI.ready(function($) {
 		.prependTo('body');
 		
 		
+		/*
 		
+		what is this?!
 	if (appAPI.dom.isIframe())
 		$('#xr-crossrider-example #xr-currentTabIframes').hide();
 	else
 		$('#xr-crossrider-example #xr-currentTabWindow').hide();
-	$('#xr-crossrider-example').css({
-		'background-color':'#2CB7F4',
-		height:'24px',
+		
+		*/
+	$('#toolbarSpan').css({
+		'background-color':toolbarColor,
+		height:toolbarHeight,
 		margin: 0,
 		padding: 0,
 		position:'fixed',
@@ -58,26 +92,32 @@ appAPI.ready(function($) {
 		width:'100%',
 		'z-index':'999'
 	});
+	
+	
 		$('#bookmarksMain').css({
-		'background-color':'#2CB7F4',
-		height:'600px',
+		'background-color':bookmarkBackground,
+		height:mainBMHeight,
 		margin: 0,
 		padding: 0,
 		position:'fixed',
-		left:0, top:'24px',
-		width:'35%',
+		left:0, top:toolbarHeight,
+		width: mainBMWidth,
 		'z-index':'999'
 	});
 	
 	
 	$('#smu-shield').css({float:'left', 'padding-left':'2px', 'padding-top':'1px'});
+	
+	
+	/*
+	cross rider example code no longer used, delete this eventually
 	$('#xr-crossrider-example #xr-toolbar').css({float:'right', 'padding-right':'2px', 'padding-top':'1px', 'width':'100%'});
 	$('#xr-crossrider-example #xr-tabs').css({'margin-left':'2px', 'margin-right':'2px'});
 	$('#xr-crossrider-example #xr-tabs button').css({'margin-left':'0px', 'margin-right':'0px'});
 	$('#xr-crossrider-example #xr-currentTabs').css({'margin-left':'2px', 'margin-right':'2px'});
 	$('#xr-crossrider-example #xr-currentTabs button').css({'margin-left':'0px', 'margin-right':'0px'});
 	$('#xr-crossrider-example #xr-toolbar button').css({
-		'background-color':'#f0f0f0',
+		'background-color':'#111111',
 		border:'none',
 		'margin-bottom': '2px',
 		'margin-top': '2px',
@@ -102,14 +142,39 @@ appAPI.ready(function($) {
 		'border-top-right-radius':'4px',
 		'border-left':'1px solid #fff'
 	});
+	*/
+	
+	/*
+		holder for recent bookmarks
+	*/
+   /* $('#bm-recent').css({
+		'padding': '15px',
+		'background-color':recentBMColor,
+		border:'none',
+		'margin-bottom': '2px',
+		'margin-top': '2px',
+		'padding': '1px 6px'
+	});*/
+
+    $('#bm-recent-container').css({
+		'width':'40%',
+		'vertical-align':'middle',
+		'margin-left':'50px',
+		'margin-right':'50px'
+	});
+
+	
+	/*
+	cross rider sample code
 	$('#xr-crossrider-example #xr-toolbar button').hover(function(){
 		$(this).css({'background-color':'#fff'});
 	}, function() {
 		$(this).css({'background-color':'#f0f0f0'});
-	});
+	});*/
 
 	var clicked=0;
 		
+		// show and hide bookmarks 
 					$('#bookmarksMain').hide()	;
 			$('#shield')
 		.click(function () {
@@ -170,8 +235,8 @@ appAPI.ready(function($) {
 		 var theBookmarks = appAPI.db.get('theBookmarks');
 		 if(theBookmarks == null)
 		 {
-		 	alert("Error: No bookmarks.");
-		 	
+		 //	alert("Error: No bookmarks.");
+		 		bookmarksSet=0;
 		 }
 		 else
 		 {
@@ -221,15 +286,27 @@ appAPI.ready(function($) {
 		}
 		function deleteRecent()
 		{
-			$('#bm-recent').html("");
+			$('#bm-recent-container').html("");
 			
 		}
 		function insertRecentSpace(howMany)
 		{
 			for(var i = 0; i < howMany; i++)
 			{
-				$('<button id="recent_'+i+'" data-which="'+i+'" title="recent_'+i+'" class="left">recent_'+i+'</button>')
-					.appendTo('#bm-recent').on("click", function(){ 
+				$(' <span id="recent_'+i+'" data-which="'+i+'" title="recent_'+i+'" class="bm-recent">recent_'+i+'</span> ').css({
+		
+		'background-color':recentBMColor,
+		'padding-left':'4px',
+		'padding-right':'4px',
+		'margin-left':'5px',
+		'margin-right':'5px',
+		'-moz-border-radius':'10px 10px 10px 10px', // rounds corners for firefox
+'border-radius':'10px 10px 10px 10px', //rounds corners for other browsers
+'border':'solid 1px #000'
+
+
+	})
+					.appendTo('#bm-recent-container').on("click", function(){ 
 					//	alert("clicked it");
 					clickedRecent($(this));
 					
@@ -245,5 +322,5 @@ appAPI.ready(function($) {
 			window.location.href = recentBookmarkURLs[which.data("which")];
 			//alert("clicked on "+which.data("which"));
 		}
-		
+		$("#body").css({'margin-top':toolbarHeight}); // this didnt work to lower the page
 });
