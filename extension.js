@@ -19,12 +19,12 @@
 
 var toolbarColor="#8C2633"; // Colour: Maroon
 							// Pantone value: Pantone 202C
-var toolbarHeight="24px";   // height of tool bar in pixels
-									  
+var toolbarHeight="32px";   // height of tool bar in pixels  was 24, trying 32
+var toolbarWithBorder="30px"; //	toolbarHeight-2 px (2*1px border)								  
 									  
 var recentBMColor="#5e99aa"; // Colour: Blue
 						     // Pantone value: Pantone 549C
-var shieldImage="";
+var shieldImage="resource-image://logo32_32.png";
 var bookmarkBackground="#D9C89E"; // main bookmarks
 						   // shown when shield is clicked
 						   // pantone 7501C  sand
@@ -42,7 +42,9 @@ appAPI.ready(function($) {
 	console.log("extension loaded");
     // Place your code here (you can also define new functions above this scope)
     // The $ object is the extension's jQuery object
-  /*
+  /*'<span id="toolbarShield" style="width: 90px; height: 90px; background-image: url('+shieldImage+'); display:block" />' +
+				
+  	'<button id="shield" title="SHIELD" class="left">SMU shield</button>' +
   test button
   	'<span id="bm-main">'+
 				
@@ -54,7 +56,7 @@ appAPI.ready(function($) {
 	$('<div id="toolbarContainer">' +
 			'<span id="toolbarSpan">' +
 				'<span id="smu-shield">'+
-					'<button id="shield" title="SHIELD" class="left">SMU shield</button>' +
+					
 				'</span>'+
 			
 					
@@ -94,6 +96,13 @@ appAPI.ready(function($) {
 	});
 	
 	
+
+
+
+
+    
+    
+	
 		$('#bookmarksMain').css({
 		'background-color':bookmarkBackground,
 		height:mainBMHeight,
@@ -106,8 +115,10 @@ appAPI.ready(function($) {
 	});
 	
 	
-	$('#smu-shield').css({float:'left', 'padding-left':'2px', 'padding-top':'1px'});
-	
+	$('#smu-shield').css({float:'left', 'padding-left':'2px'});
+	 appAPI.resources.createImage(
+        '<img src="resource-image://logo32_32.png" width="32" height="32" />'
+    ).appendTo('#smu-shield');
 	
 	/*
 	cross rider example code no longer used, delete this eventually
@@ -158,9 +169,10 @@ appAPI.ready(function($) {
 
     $('#bm-recent-container').css({
 		'width':'40%',
-		'vertical-align':'middle',
 		'margin-left':'50px',
-		'margin-right':'50px'
+		'margin-right':'50px',
+			'height':toolbarHeight,
+			'display':'inline-block'
 	});
 
 	
@@ -176,11 +188,11 @@ appAPI.ready(function($) {
 		
 		// show and hide bookmarks 
 					$('#bookmarksMain').hide()	;
-			$('#shield')
+			$('#smu-shield')
 		.click(function () {
 			if(clicked==0)
 			{
-					$('#shield').html("SMU SHIELD")	;
+				//	$('#smu-shield').html("SMU SHIELD")	;
 					$('#bookmarksMain').show()	;
 				clicked=1;
 			
@@ -188,7 +200,7 @@ appAPI.ready(function($) {
 			else
 			{
 					$('#bookmarksMain').hide()	;
-							$('#shield').html("SMU shield")	;
+						//	$('#shield').html("SMU shield")	;
 				clicked=0;
 			}
 		});
@@ -291,10 +303,11 @@ appAPI.ready(function($) {
 		}
 		function insertRecentSpace(howMany)
 		{
+		//	var modifiedHeight=
 			for(var i = 0; i < howMany; i++)
 			{
 				$(' <span id="recent_'+i+'" data-which="'+i+'" title="recent_'+i+'" class="bm-recent">recent_'+i+'</span> ').css({
-		
+	
 		'background-color':recentBMColor,
 		'padding-left':'4px',
 		'padding-right':'4px',
@@ -302,7 +315,13 @@ appAPI.ready(function($) {
 		'margin-right':'5px',
 		'-moz-border-radius':'10px 10px 10px 10px', // rounds corners for firefox
 'border-radius':'10px 10px 10px 10px', //rounds corners for other browsers
-'border':'solid 1px #000'
+'border':'solid 1px #000',
+'height':toolbarWithBorder, // minus the border
+'line-height':toolbarWithBorder, // minus the border
+//'line-height':toolbarHeight-'3px', // minus the border
+'display':'inline-block'
+//'v-align':'middle',
+
 
 
 	})
@@ -322,5 +341,5 @@ appAPI.ready(function($) {
 			window.location.href = recentBookmarkURLs[which.data("which")];
 			//alert("clicked on "+which.data("which"));
 		}
-		$("#body").css({'margin-top':toolbarHeight}); // this didnt work to lower the page
+		$("body").css({'margin-top':toolbarHeight}); // move page down, works 99% of the time
 });
