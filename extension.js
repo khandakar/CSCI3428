@@ -68,6 +68,10 @@ appAPI.ready(function($) { // put all code within the ready scope
 				
 	var mainBMHeight="600px";
 	var mainBMWidth="35%";
+	var defaultSearchTarget=0; // 0 = same page, 1 = new tab
+	var fontFamily="Lucida Grande";
+	var fontSize="medium";
+	
 	
 	var debugLevel=0;	// -1 = off
 						// shows debugLevel or higher
@@ -83,13 +87,38 @@ appAPI.ready(function($) { // put all code within the ready scope
 		searchDomains[0][0]="Google"; 							     // title
 		searchDomains[0][1]="https://www.google.ca/?#q=SEARCH_TERM"; // search url
 		
+		searchDomains[1]=new Array();
+		searchDomains[1][0]="SMU"; 							     // title
+		searchDomains[1][1]="http://www.smu.ca/searchresults.html?q=SEARCH_TERM&sa=Search"; // search url
+		
 	var currentDomain=0;	// points to the search domain the user currently has selected
 	
+
+	var searchBoxBackground="white";
+	var searchBoxFontColor="black";
+	var searchBoxHeight=(toolbarHeightText/2)+'px';
+	var searchBoxWidth="150px";
 	
+	var searchDomainTextOn="/\\";
+	var searchDomainTextOff="\\/";
+		
+	
+	/* auto resizing options */
+	var resizes=0;    // tracks number of browser resizes since last change
+	var inResize=0;   // if the browser is current resizing =1, 0 otherwise
+	var threshhold=4; // how many resizes are needed to trigger a change in the
+				      // toolbar. Too low and you get bad performance. Too high
+				      // and you might not get accurate changes
+
+	var timerThreshold=4; // 4* intervalTIme = time to wait before a timed resize
+	var intervalTime=100; // in milliseconds ie 100 = 100 ms 0.1 of a second
+	var documentHidden=0; // if current page is in focus, if 0 no resizes will be done
+						  // if 1, resizes will occur. This helps with performance
+
 	/* Dont change these */
-	var clicked=0;     // 0 = shield is not clicked/inactive, 1 = shield is clicked/active
-	var debugStatus=0; // 0 = debug is open, 1 = debug is closed
-	
+	var clicked=0;        // 0 = shield is not clicked/inactive, 1 = shield is clicked/active
+	var debugStatus=0;    // 0 = debug is open, 1 = debug is closed
+	var clickedDomains=0; // 0 = domains is open, 1 = domains is closed
 	/* our bookmark array holders */
 	
 	/* 
@@ -114,9 +143,9 @@ appAPI.ready(function($) { // put all code within the ready scope
 	
 	
 	
-	loadUI();		// set up UI so bookmarks may load
-	updateFromDB(); // now that UI is loaded, fill in the BM data
-
+	loadUI();			// set up UI so bookmarks may load
+	updateFromDB(); 	// now that UI is loaded, fill in the BM data
+	
 	
 	
 	/*
@@ -151,9 +180,10 @@ appAPI.ready(function($) { // put all code within the ready scope
 					'<div id="bm-search">'+
 						'<div id="form-wrapper" >'+
 							'<input type="text" length="20" id="searchTerm" >'+
-							'<input type="submit" id="searchGo" value="Go!">'+
+							'<input type="submit" id="searchGo" value="Go!" style="">'+
+							'<input type="submit" id="changeDomain" value="\\/" style="">'+
 						'</div>'+
-						'<div id="searchDomain" style="hidden">'+
+						'<div id="searchDomain" style="display: hidden">'+
 						'</div>'+
 					'</div>'+
 				'</div>' +
@@ -165,6 +195,11 @@ appAPI.ready(function($) { // put all code within the ready scope
 		$('<div id="bookmarksMain">' +
 			'</div>')
 		.insertAfter('#SMUTHolder');
+		
+		/* dropdown domains */
+		$('<div id="domainMain">' +
+			'</div>')
+		.insertAfter('#bookmarksMain');
 		
 		/* debug container */
 		$('<div id="debugMsg">' +
@@ -180,7 +215,7 @@ appAPI.ready(function($) { // put all code within the ready scope
 			//height:mainBMHeight,
 			margin: 0,
 			padding: 0,
-			right: "0px",
+			right: "15%", // to allow for domains
 			position:'fixed',
 			float:'right', 
 			top:toolbarHeight,
@@ -260,6 +295,12 @@ appAPI.ready(function($) { // put all code within the ready scope
 		$('#searchGo').removeClass();
 		$('#searchTerm').removeClass();
 		$('#bm-search').removeClass();
+		$('#bm-recent-container').removeClass();
+		
+		$('#changeDomain').removeClass();
+		
+	
+		
 		
 		/* add reset class incase page affects our toolbar */
 		$('#SMUTHolder').css(resetClass);
@@ -267,7 +308,9 @@ appAPI.ready(function($) { // put all code within the ready scope
 		$('#form-wrapper').css(resetClass);
 		$('#searchGo').css(resetClass);
 		$('#searchTerm').css(resetClass);
+		$('#changeDomain').css(resetClass);	
 		$('#bm-search').css(resetClass);
+		$('#bm-recent-container').css(resetClass);
 		
 		/* proceed with setting css as needed */
 		$('#SMUTHolder').css({
@@ -334,6 +377,17 @@ appAPI.ready(function($) { // put all code within the ready scope
 			width:'100%',
 			'z-index':'999999999999'
 		});	
+		
+		$('#bm-recent-container').css({
+			'width':'40%',
+			'float':'left',
+			'margin-right':'50px',
+			'position':'static',
+			'height':toolbarHeight,
+			'display':'inline-block',
+			'overflow':'hidden'
+		});
+	
 	
 		 $('#bm-search').css({
 			'right':'0px',
@@ -407,33 +461,166 @@ appAPI.ready(function($) { // put all code within the ready scope
 			left:0, top:toolbarHeight,
 			'z-index':'999999999999'
 		});
-	
-	
-		var computedHeight=(toolbarHeightText/2)+'px';
-		$('#searchTerm').css({
+		
+		
+		$('#domainMain').css({
+			'margin':'0',
+			'padding':'0',
 			'background':'white',
-			'float':'none',
+			'border':'none',
+			'bottom':'auto',
+			'clear':'none',
+			'cursor':'default',
+			'float':'right',
+			'font-size':'medium',
+			'font-style':'normal',
+			'font-weight':'normal',
+			'height':'auto',
 			'left':'auto',
-			'height':computedHeight,
-			'position':'static',
-			'right':'auto',
+			'letter-spacing':'normal',
+			'line-height':'normal',
+			'max-height':'none',
+			'max-width':'15%',
+			'min-height':'0',
+			'min-width':'10%',
+			'overflow':'visible',
+			'position':'fixed',
+			'right':'0px',
+			'text-align':'left',
+			'text-decoration':'none',
+			'text-indent':'0',
+			'text-transform':'none',
 			'top':'2px',
-			'width':'150px'
-		});	
+			'visibility':'visible',
+			'white-space':'normal',
+			'width':'auto',
+			'z-index':'auto',
+			'font-family':'Lucida Grande',
+			'background-color':recentBMColor,
+			'padding-left':'4px',
+			'padding-right':'0px',
+			'margin-left':'5px',
+			'margin-right':'0px',
+			'-moz-border-radius':'0px 0px 0px 0px', // rounds corners for firefox
+			'border-radius':'0px 0px 0px 0px', //rounds corners for other browsers
+			'border':'solid 1px #000',
+			'line-height':'auto', // minus the border
+			'display':'inline-block',
+			'float': 'left',// fixes mismatch position on some sites
+			'width':'auto',
+			'overflow':'hidden',
+			'text-align':'center',
+			'background-color':bookmarkBackground,
+			margin: 0,
+			padding: 0,
+			position:'fixed',
+			left:'auto', top:toolbarHeight,
+			'z-index':'999999999999'
+		});
+	
+	
+	
 	
 
 		$('#form-wrapper').css({
 			'position':'relative',
 			'right':'0',
 			'left':'0',
+			'float':'none',
 			'height':toolbarHeight,
 			'display':'table-cell',
 			'vertical-align':'middle'
 		});
 		
+		
+		$('#searchTerm').attr('style', 'font-family: '+fontFamily+' !important; font-size: '+fontSize+' !important; border: 1px solid #999999'); // !important cant be overidden
+		$('#searchTerm').css({
+			'display':'inline-block',
+			'letter-spacing': '0px',
+			'text-decoration': 'none',
+			'text-transform': 'none',
+			'background':searchBoxBackground,
+			'color':searchBoxFontColor,
+			'bottom':'auto',
+			'vertical-align':'auto',
+			'float':'none',
+			'left':'auto',
+			'margin':'0px',
+			'height':searchBoxHeight,
+			'padding':'0px',
+			'position':'static',
+			'right':'auto',
+			'top':'2px',
+			'width':searchBoxWidth
+		});	
+		
+		$('#searchTerm').css({
+			'vertical-align':''
+		});	
+		
+		$('#searchGo').attr('style', 'font-family: Lucida Grande !important; font-size: medium !important');
 		$('#searchGo').css({
+			'display':'inline-block',
+			'right':'0px',
+			'width':'auto',
+			'height':'auto',			
+			'letter-spacing': '0px',
+			'text-decoration': 'none',
+			'text-transform': 'none',
+			'left':'auto',
+			'float':'none',
+			'font-family':'Lucida Grande !important',
+		    'font-size':'medium !important',
+		    'font-style':'normal !important',
+		    'font-weight':'normal !important',
+     		'background-color':'black',
+     		'color':'white',
+     		'border': '1px solid #000000',
+   			'border-radius': '3px',
+    		'box-shadow': '0 2px 1px rgba(0, 0, 0, 0.3), 0 1px 0 rgba(255, 255, 255, 0.4) inset',
+			'margin': '0',
+			'padding': '0',
+			'position':'static'
+		});
+		
+		    
+  
+
+		$('#changeDomain').attr('style', 'font-family: Lucida Grande !important; font-size: medium !important');
+		$('#changeDomain').css({
+			'display':'inline-block',
+			'right':'0px',			
+			'width':'auto',
+			'height':'auto',
+			'letter-spacing': '0px',
+			'text-decoration': 'none',
+			'text-transform': 'none',
+			'left':'auto',
+			'float':'none',
+			'font-family':'Lucida Grande !important',
+		    'font-size':'medium !important',
+		    'font-style':'normal !important',
+		    'font-weight':'normal !important',
+     		'background-color':'black',
+     		'color':'white',
+     		'border': '1px solid #000000',
+   			'border-radius': '3px',
+    		'box-shadow': '0 2px 1px rgba(0, 0, 0, 0.3), 0 1px 0 rgba(255, 255, 255, 0.4) inset',
+			'margin': '0',
+			'padding': '0',
+			'position':'static'
+		});
+		/*
+		var searchGoHeight=$("#searchGo").height();
+		var searchGoHeightPx=searchGoHeight+'px';
+		var computedMarginTop=toolbarHeightText-searchGoHeight-2*3;
+		var computedMarginTopPx=computedMarginTop+'px';
+		$('#changeDomain').attr('style', 'font-family: Lucida Grande !important; font-size: medium !important');
+		$('#changeDomain').css({
+			'height':'auto',
 			'right':'0px',
 			'left':'auto',
+			'float':'right',
 			'font-family':'Lucida Grande',
 		    'font-size':'medium',
 		    'font-style':'normal',
@@ -443,13 +630,22 @@ appAPI.ready(function($) { // put all code within the ready scope
      		'border': '1px solid #000000',
    			'border-radius': '3px',
     		'box-shadow': '0 2px 1px rgba(0, 0, 0, 0.3), 0 1px 0 rgba(255, 255, 255, 0.4) inset',
-			margin: 0,
-			padding: 0,
+			'margin': '0',
+			'padding': '0',
+			'position':'static',
+			//'margin-top':computedMarginTopPx // toolbar height - button height - 2*border-radius
 		});
+		*/
 		
+		
+		//$('#changeDomain').css({'line-height':searchGoHeightPx}); // make same height as go button
+
+
 		$("#debugMsg").hide(); 	    // make sure debug container is not displayed at first
 		$('#bookmarksMain').hide(); // main BM container
-		
+		$('#domainMain').hide();    // domain container
+		$('#searchDomain').hide();    // this is a holder for processing, keep it hidden
+
 		/* load the smu shield image */
 		appAPI.resources.createImage(
         	'<img src="resource-image://logo32_32.png" width="32" height="32" />'
@@ -475,8 +671,17 @@ appAPI.ready(function($) { // put all code within the ready scope
 	*/
 	function fixPositions ()
 	{
-		
-		
+		var bodyMoved=0;
+		if (!appAPI.isMatchPages("*.google.ca/*"))
+		{
+
+			addDebug(1, "Moving margin top down by "+toolbarHeight+".<br>");
+			$("body").css({'margin-top':toolbarHeight}); // move page down, works 99% of the time
+			//bodyMoved=1;
+		}
+
+		/*
+		we dont use frames anymore, but if it was enabled this is how it is done
 		if (!appAPI.dom.isIframe()) // only works if iframes turned on
 		{
 
@@ -492,20 +697,36 @@ appAPI.ready(function($) { // put all code within the ready scope
 			}
 
 		}
-		
+		*/
 		
 		/* specific web pages */
-		if (!appAPI.isMatchPages("mail.google.com/*"))
+		//if ((bodyMoved==0 && !appAPI.isMatchPages("google.ca") && 
+		if((!appAPI.isMatchPages("google.com")) && ( appAPI.isMatchPages("google.com/?*") || appAPI.isMatchPages("*.google.com/*") || appAPI.isMatchPages("google.ca/?*")))
 		{
-			$(".gb_ub").css({'margin-top':'30px'});
-			$(".gb_Ua").css({'margin-top':'30px'});
+			$(".gb_ub").css({'margin-top':toolbarHeight});
+			$(".gb_Ua").css({'margin-top':toolbarHeight});
+			$("#gb").css({'margin-top':toolbarHeight});
+			$("#gba").css({'margin-top':toolbarHeight});
+			$("#mngb").css({'margin-top':toolbarHeight});
 		}
+
 		
 		if (appAPI.isMatchPages("facebook.com/*"))
 		{
-			addDebug(1, "Detected facebook.com. Moving .fixed_elem down by "+toolbarHeight+".<br>");
+			addDebug(1, "Detected facebook.com. Moving .fixed_elem and .fbChatSidebar down by "+toolbarHeight+".<br>");
 			$(".fixed_elem").css({'margin-top':toolbarHeight});	
+			$(".fbChatSidebar").css({'top':toolbarHeight});	
+			
+			
+			
 		}
+		if (appAPI.isMatchPages("twitter.com/*"))
+		{
+			addDebug(1, "Detected twitter.com. Moving .topbar down by "+toolbarHeight+".<br>");
+			$(".topbar").css({top:toolbarHeight});	
+		}
+        			
+        			
         			
 	} // end of fixPositions()
 
@@ -740,7 +961,7 @@ appAPI.ready(function($) { // put all code within the ready scope
 			.appendTo('#bookmarksMain').on("click", function(){ 
 				addDebug(0, "Clicked a main bookmark.<br>");
 				clickedMain($(this));
-			});
+			});	
 		}
 		addDebug(0, "Exiting updateBMMainUI<br>");
 	} // end of updateBMMainUI()
@@ -847,7 +1068,7 @@ appAPI.ready(function($) { // put all code within the ready scope
 			}
 			else
 			{
-				addDebug(3, "setupBMPtr saw a bookmark with no status. i="+i+" title="+theBMs[i][0]+"<br>");
+				addDebug(2, "setupBMPtr saw a bookmark with no status. i="+i+" title="+theBMs[i][0]+"<br>");
 			}
 		}
 		addDebug(0, "Exiting setupBMPtr<br>");
@@ -856,23 +1077,119 @@ appAPI.ready(function($) { // put all code within the ready scope
 	
 	
 	/*
+		Handle clicking change domain search
+	*/
+	$('#changeDomain')
+		.click(function () {
+		if(clickedDomains==0) // shield is not active, activate it
+		{
+			addDebug(0, "Opening domains.<br>");
+			setupDomains();
+			$('#domainMain').show();
+			$('#changeDomain').attr('value',searchDomainTextOn);
+			clickedDomains=1;
+		}
+		else	// shield is active, deactivate it
+		{
+			addDebug(0, "Closing domains.<br>");
+			$('#domainMain').hide();
+			$('#changeDomain').attr('value',searchDomainTextOff);
+			clickedDomains=0;
+		}
+	});
+		
+	/*
+		makes sure search domain container has the
+		domain information for the user to click
+		
+		Some css is done here
+	*/
+	function setupDomains ()
+	{
+		addDebug(0, "Entered setupDomains<br>");
+		deleteDomain(); // empty out UI container
+		for(var i = 0; i < searchDomains.length; i++)
+		{
+			var addOn=" ";
+			if(i==currentDomain)
+			{
+			//	addOn="X";
+			}
+			$(' <div id="domain_'+i+'" data-which="'+i+'" title="'+searchDomains[i][0]+' - '+searchDomains[i][1]+'" >'+addOn+' '+searchDomains[i][0]+'</div> ').css({
+				'overflow':'hidden',
+				'background-color':recentBMColor,
+				'padding-left':'4px',
+				'padding-right':'4px',
+				'margin':'5px',
+				'-moz-border-radius':'10px 10px 10px 10px', // rounds corners for firefox
+				'border-radius':'10px 10px 10px 10px', //rounds corners for other browsers
+				'border':'solid 1px #000',
+				'height':toolbarWithBorder, // minus the border
+				'line-height':toolbarWithBorder, // minus the border
+				'v-align':'middle',
+			})
+			.appendTo('#domainMain').on("click", function(){ 
+				addDebug(0, "Clicked a search domain.<br>");
+				clickedDomain($(this));
+			});	
+		
+		}
+		
+	}
+		
+	/* deletes the currently displayed search domains */
+	function deleteDomain ()
+	{
+		$('#domainMain').html("");
+	}
+			
+				
+
+		
+		
+	/*
 		Handle clicking the shield
 	*/
 	$('#smu-shield')
 		.click(function () {
+			toggleBookmarks();
+	});
+		
+	/*
+		opens and close the bookmark container based
+		on its current state
+	*/
+	function toggleBookmarks ()
+	{
 		if(clicked==0) // shield is not active, activate it
 		{
-			addDebug(0, "Opening main bookmarks.<br>");
-			$('#bookmarksMain').show();
-			clicked=1;
+			showBookmarks();
 		}
 		else	// shield is active, deactivate it
 		{
-			addDebug(0, "Closing main bookmarks.<br>");
-			$('#bookmarksMain').hide();
-			clicked=0;
+			hideBookmarks();
 		}
-	});
+	}
+	
+	/*
+		Shows the bookmark container to the user
+	*/
+	function showBookmarks ()
+	{
+		$('#bookmarksMain').show();
+		clicked=1;
+	}
+	
+	/*
+		Shows the bookmark container to the user
+	*/
+	function hideBookmarks ()
+	{
+		$('#bookmarksMain').hide();
+		clicked=0;
+	}	
+		
+		
 		
 		
 	/*
@@ -882,16 +1199,114 @@ appAPI.ready(function($) { // put all code within the ready scope
 	*/
 	$('#searchGo')
 		.click(function () {
+			addDebug(0, "processing search request.<br>");
+			currentDomain=getCurrentDomain(); // make sure domain is up to date
+			var searchTerm=$('#searchTerm').val();
+			addDebug(0, "processing search saw term: "+searchTerm+" .<br>");
+			searchByTerm(searchTerm);
+		});
+	
+	
+	/*
+		given a term to search for, will use the default domain
+		and target to search for that term
+	
+	*/
+	function searchByTerm (searchTerm)
+	{
+		addDebug(0, "searchByTerm: "+searchTerm+" .<br>");
+		var domain=searchDomains[currentDomain][1];
+		var target=defaultSearchTarget;
+		addDebug(0, "searchByTerm: using  domain "+domain+"  target "+target+" .<br>");
+
+		searchByAll(domain, searchTerm, target); 
+	}
+	
+	/*
+		Given a domain to use to search for term, the
+		resulting page will either load in the current page
+		if target is 1, and in another (new) page otherwise
+	*/
+	function searchByAll (domain, term, target)
+	{
+		addDebug(0, "searchByAll: domain "+domain+" term "+term+" target "+target+" .<br>");
+
 		var div = $('#searchDomain');
-		var theTerm;
 		
-		div.html(searchDomains[currentDomain][1]); // our current search URL
-		theTerm=$('#searchTerm').val(); // user inputted search term
-		div.html(div.html().replace('SEARCH_TERM', theTerm)); // enter search term into URL
+		div.html(domain); // our current search URL
 		
-		addDebug(0, "Attempting to load "+div.html()+"<br>");
-		window.location.href = div.html(); // set current page to the search URL we generated
-	});
+		div.html(div.html().replace('SEARCH_TERM', term)); // enter search term into URL
+		var domainWithTerm=div.html();
+		addDebug(0, "current search domain with term: "+domainWithTerm+"<br>");
+		
+		if(target==0)
+		{
+			window.location.href = domainWithTerm; // set current page to the search URL we generated
+		}
+		else
+		{
+			appAPI.message.toBackground({
+				action:'gotoUrl',
+				value:domainWithTerm
+			});
+		}
+	}
+	
+	
+	
+	/*
+		updates the current default search domain value (such as 1 2 3) pointing
+		to the domain array
+		
+		then changes the users url based on the search term and domain
+	*/ 	
+	function clickedDomain (which)
+	{
+		$('#domainMain').hide(); // auto hide the main BM container
+		clickedDomains=0;
+		var theDomainPos=which.data("which"); // bookmark position as displayed on UI
+		if(searchDomains!=null && theDomainPos<searchDomains.length) // make sure we have the domain data
+		{
+			addDebug(0, "clickedDomain search domain "+searchDomains[theDomainPos]+" was clicked.<br>");
+			currentDomain=theDomainPos;
+			changeSearchDomain(currentDomain);
+			document.getElementById('searchGo').click(); // submit the search
+			
+			
+		}
+		else
+		{
+			addDebug(2, "clickedDomain attempted to load a domain that appears to not exist<br>");
+		}
+	
+	}
+	
+	/*
+		Gets the current set search domain and sets it
+		for the page to use
+	*/
+	function getCurrentDomain ()
+	{
+		var newCurrentDomain = appAPI.db.get("searchDomain");
+		if(newCurrentDomain==null || newCurrentDomain>searchDomains.length)
+		{
+			newCurrentDomain=0;
+			addDebug(2, "getCurrentDomain had no value. Setting current domain to 0.<br>");
+			setCurrentDomain(0);
+		}
+		return newCurrentDomain;
+	}
+		
+	/*
+		Sets the current set search domain in the DB
+	*/
+	function changeSearchDomain (domain)
+	{
+		addDebug(0, "changeSearchDomain setting current DB value for domain to "+domain+".<br>");
+		currentDomain=domain;
+		appAPI.db.set("searchDomain", domain);
+	}
+	
 
 
 	/*
@@ -913,7 +1328,7 @@ appAPI.ready(function($) { // put all code within the ready scope
 		}
 		else
 		{
-			addDebug(3, "clickedRecent attempted to load a bookmark that appears to not exist<br>");
+			addDebug(2, "clickedRecent attempted to load a bookmark that appears to not exist<br>");
 		}
 	}
 		
@@ -940,7 +1355,7 @@ appAPI.ready(function($) { // put all code within the ready scope
 		}
 		else
 		{
-			addDebug(3, "clickedMain attempted to load a bookmark that appears to not exist<br>");
+			addDebug(2, "clickedMain attempted to load a bookmark that appears to not exist<br>");
 		}
 		//	window.location.href = bookmarkURLS[which.data("which")];
 
@@ -972,7 +1387,7 @@ appAPI.ready(function($) { // put all code within the ready scope
 	
 		if(allBMs==null || mainBMptr==null || recentBMptr==null || which>mainBMptr.length) // make sure we have the bookmark data
 		{
-			addDebug(3, "pushRecents tried to process data it did not have<br>");
+			addDebug(2, "pushRecents tried to process data it did not have<br>");
 			return;
 		}
 	
@@ -1147,5 +1562,144 @@ appAPI.ready(function($) { // put all code within the ready scope
 			return true;
 		}
 	}); 
+	
+	
+	/*
+		Handle the browser resizing
+		If there is not enough room the recent bookmarks shrink/cutt off
+		If the search overlaps the recent bookmarks the bookmarks will
+		be hidden
+		If there is not enough room for the search it will hide too.
+		
+		Once room allows, the search will be reenabled and recent bookmarks
+		will show up depending on how much room there is.
+	*/
+	
+
+	/* fires when the browser is resized */
+	$(function(){
+		$(window).resize(function(){
+		
+			addDebug(0, "Resize detected. Resizes: "+resizes+"<br>"); 
+			inResize=1;
+			resizes++;
+			if(resizes>threshhold)
+			{
+				addDebug(1, "Resize threshold hit..<br>"); 
+				resizeNow();	
+			}
+
+		});
+	
+	});
+
+	/* set up the timer to check our resize status */
+    var intervalId = appAPI.setInterval(function() {
+    	if(document.hidden)
+    	{
+    		documentHidden=1;
+    		addDebug(0, "Window is hidden.<br>"); 
+    	}
+    	else
+    	{
+    		if(documentHidden!=0)
+    		{
+    			addDebug(0, "Window activated, resize.<br>"); 
+    			documentHidden=0;
+    			resizes=0;
+    			inResize=0;
+    			resizeNow();
+    			
+    		}
+	    	else if(resizes>0) // the browser has been resized
+	        {
+	        	if(inResize>timerThreshold)
+	        	{
+	        		addDebug(0, "Timer threshold hit.<br>"); 
+	        		inResize=0;
+	        		resizeNow(); // handle the toolbar resizing
+	        	}
+	        	else if(inResize>=1)
+	        	{
+	        		addDebug(0, "Currently in a resize.<br>"); 
+	        		inResize++; // count the number of times timer has seen
+	        					// the browser in a continuous resize
+	        	}
+	        	else
+	        	{
+	        		//do nothing
+	        	}
+	        }
+	    }
+    }, intervalTime);
+    
+   
+	
+	function resizeNow()
+	{
+		if(document.hidden) // window is not focused, don't do anything
+		{
+			documentHidden=1;
+			addDebug(1, "Window is not in focus, skipping resize.<br>");
+			return;
+		}
+	
+		resizes=0; // reset the resize count
+		
+  		var searchContainX=$("#bm-search").offset().left;
+  		var recentContainX=$("#bm-recent-container").offset().left+$("#bm-recent-container").width();
+  		var smuShieldX=$("#smu-shield").offset().left+$("#smu-shield").width();
+  		
+  		addDebug(0, "resizeNow Search LEFT: "+searchContainX+ "<br>");
+  		addDebug(0, "resizeNow Recent RIGHT "+recentContainX+  "<br>");
+  		addDebug(0, "resizeNow shield RIGHT "+smuShieldX+ "<br>");
+  		
+  		if($("#bm-search").is(":visible")==true)
+  		{
+  			addDebug(1, "Search container is currently visible.<br>");
+  			if($("#bm-recent-container").is(":visible")==true)
+  			{
+  				addDebug(1, "Recent container is currently visible.<br>");
+  				if(searchContainX<=recentContainX)
+  				{
+	  				$("#bm-recent-container").hide();
+	  				addDebug(1, "making sure recent container is HIDDEN<br>");
+  				}
+  			}
+  			else
+  			{
+  				addDebug(1, "Recent container is currently invisible.<br>");
+  				// since its invisible, check widths as offset will be 0
+  				if(($("#smu-shield").width()+$("#bm-recent-container").width())<searchContainX)
+  				{
+  					addDebug(1, "making sure recent container is SHOWN<br>");
+  					$("#bm-recent-container").show();
+  				}
+  			}
+  			
+  				if(searchContainX<=smuShieldX)
+  			{
+  				$("#bm-search").hide();
+  				addDebug(1, "making sure search container is HIDDEN<br>");
+  			}
+
+  		
+  		}
+  		else
+  		{
+  			addDebug(1, "Search container is currently invisible.<br>");
+  			
+  		    	if(($("#smu-shield").width()+$("#bm-search").width())<$(window).width())
+  				{
+  					addDebug(1, "making sure recent container is SHOWN<br>");
+  					$("#bm-search").show();
+  				}
+  			
+  		}
+  			
+		addDebug(1, "Resize DONE<br>");
+	  			
+	}
+
 		
 });
