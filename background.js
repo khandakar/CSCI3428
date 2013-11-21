@@ -3,21 +3,159 @@
   For more information please visit our wiki site:
   http://docs.crossrider.com/#!/guide/scopes_background
 *************************************************************************************/
-       
+         
 appAPI.ready(function($) {  
-      
+       
+		console.log("background started");
     /* listener so the extension can talk to the background */
 	var lid = appAPI.message.addListener(function(msg) {
 		switch (msg.action) { 
-		
+								
 			case 'gotoUrl': sendToURL(msg.value); break;
 			
 			case 'updateFolders': updateBrowserFolder(); break;
 			
+		} 
+	}); 
+	
+	var forcedUpdate=1; // 0 = off, 1 = on
+						// forced update will send request to update UI
+						// regardless if a change was detecting or not
+						// this requires more resources but allows for
+						// changes in 1 browser window to pass onto a 
+						// second window.
+						// With this off, tabs in the same window are
+						// all the same. This is only useful when
+						// more than 1 browser window is open.
+	var bookmarkUpdateSpeed=1500; // in ms, do not set too low (fast)
+								  // as this is resource heavy
+								  // modern computers can easily handle 
+								  // 5000 (5ms) tested 
+	
+	/* 
+		handle browser action (button to toggle toolbar) 
+		if you dont see the button, make sure it is set
+		for example, in firefox click on 
+		view -> toolbars -> add-ons, then find the SMUT
+		icon and drag it to the browsers menu
+	
+	*/
+	
+	/* set the image, must be a 19x19*/
+	
+	var toolbarShown=getToolbarStatus();
+	var toolbarShownIcon="icons/19_19_on.png";
+	var toolbarHiddenIcon="icons/19_19_off.png";
+	var toolbarShownText="Turn SMUT Toolbar OFF";
+	var toolbarHiddenText="Turn SMUT Toolbar ON"
+	
+	firstUseSetUp();
+	
+	/*
+		first time background loads it checks to see
+		if the toolbar should be shown or hidden
+	*/
+	function firstUseSetUp()
+	{
+		toolbarShown=preToggle(toolbarShown);	// so signal a toggle we swap the
+										        // current value and then toggle it
+		
+		 appAPI.contextMenu.add("toggleToolbar", "Toolbar Toggle", function (data) {
+			toggleToolbar();
+    	}, ["all"]);
+
+
+		toggleToolbar();	
+	}
+	
+	/* gets current toolbar status (0 is hidden, 1 is on) */
+	function getToolbarStatus()
+	{
+		var value=appAPI.db.get("toolbarStatus");
+			
+		if(value==null)
+		{
+			appAPI.db.set("toolbarStatus", 1);
+			return 1;
 		}
-	});
+		else
+		{
+	
+			return value;
+		}
+	} 
+	
+	/* checks to see if the badge is lit up (on) or off */
+	function checkBadge()
+	{
+		var currentBadge=getToolbarStatus();
+		if(toolbarShown!=currentBadge)
+		{
+			toggleToolbar();
+		}
+	}
+	
+	/* given 1, return 0. given 0, return 1 */
+	function preToggle(value)
+	{
+		if(value==0)
+		{
+			return 1;
+		}
+		return 0;
+		
+	}
+	
+	/* 
+		switches the toolbar from on and off
+		and saved the value in the database
+		lastly, tells the UI to update
+	*/
+	function toggleToolbar()
+	{
+		if(toolbarShown==0)
+		{
+			turnOnToolbar();
+		}
+		else 
+		{
+			turnOffToolbar();
+		}
+
+		appAPI.db.set("toolbarStatus", toolbarShown);
+	
+		appAPI.message.toAllTabs({'action':'toggleTb', 'value':toolbarShown}); // make sure UI is on/off
+
+	}
+	
+	/* turns the toolbar on */
+	function turnOnToolbar()
+	{	
+		toolbarShown=1;
+		appAPI.contextMenu.updateTitle("toggleToolbar", "Hide Toolbar");
+		appAPI.browserAction.removeBadge();// reset the icon
+		appAPI.browserAction.setResourceIcon(toolbarShownIcon);
+		appAPI.browserAction.setTitle(toolbarShownText);
+	} 
 	
 	
+	/* turns the toolbar off */
+	function turnOffToolbar()
+	{	
+		toolbarShown=0;
+		appAPI.browserAction.removeBadge();// reset the icon
+		appAPI.contextMenu.updateTitle("toggleToolbar", "Show Toolbar");
+		appAPI.browserAction.setResourceIcon(toolbarHiddenIcon);
+		appAPI.browserAction.setTitle(toolbarHiddenText);
+	}
+	
+	/* user clicked the badge */
+	 appAPI.browserAction.onClick(function() {
+        // Changes the badge text
+       toggleToolbar();
+    });
+    
+    
 	
     /*
     	Given a url, creates a new tab that is located 
@@ -367,9 +505,13 @@ appAPI.ready(function($) {
 	*/
 	setInterval(function(){
 		appAPI.db.async.get("bookmarks", function(value) {
+			if(forcedUpdate == 1)
+			{
+				checkBadge(); // update the toolbar image and status
+			}
 			compareDBToFolderStepOne(value);
 		});	
-    },5000); 
+    },bookmarkUpdateSpeed); 
     
 
     /*
@@ -478,6 +620,12 @@ appAPI.ready(function($) {
     	}
     	else
     	{
+    		if(forcedUpdate == 1) // tell browser to update anyways
+			{
+				sendDebug(0, "Attempting a forced update.<br>");
+				appAPI.message.toActiveTab({'action':'notify','type':'db', 'todo':'update'}); 
+				sendDebug(0, "Forced update complete.<br>");
+			}
     		sendDebug(0, "compareDBToFolder: no difference found.<br>");
     	}
     	sendDebug(0, "compareDBToFolder: EXITING<br>");
