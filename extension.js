@@ -3,10 +3,10 @@
   For more information please visit our docs site: http://docs.crossrider.com
 *************************************************************************************/
 
-
+ 
 appAPI.ready(function($) { // put all code within the ready scope
-						   // it ensures all resources are loaded before starting
-
+		//	alert("whu");		   // it ensures all resources are loaded before starting
+console.log("Starting SMUT<br>");
 	/*
 		In this document:
 		BM refers to bookmark
@@ -15,10 +15,7 @@ appAPI.ready(function($) { // put all code within the ready scope
 		db or DB refers to database
 	*/
 	
-	
-	
-	
-	
+	 
 	
 
     /*
@@ -40,41 +37,115 @@ appAPI.ready(function($) { // put all code within the ready scope
 			case 'notify': notifyAction(msg.type, msg.todo); break;
 			
 			case 'updateFolders': updateBrowserFolder(); break;
+			
+			case 'toggleTb': toggleTb(msg.value); break;
 		}
 	});
 	
-	addDebug(1, "Page loaded.<br>");
+	
+	var toolbarStatus=0;
+	var firstLoad=0; // page just loaded
 	
 	/*
+		checks to see if the toolbar is suppose to be
+		showned (1) or hidden (0)
+	*/
+	function getToolbarStatus()
+	{
+		var value=appAPI.db.get("toolbarStatus");
+
+		if(value==null)
+		{
+			appAPI.db.set("toolbarStatus", 1);
+			return 1;
+		}
+		else
+		{
+		
+			return value;
+		}
+	}
+	
+	
+	var current=""; // current status
+	/*
+		Switches the toolbar between on and off
+	*/
+	function toggleTb (changeTo)
+	{
+		
+		if(firstLoad==0 && changeTo==0)
+		{
+			toolbarStatus=0;
+			$("#SMUTHolder").hide();
+		}
+		else
+		{
+			if(toolbarStatus!=changeTo)
+			{
+				// do nothing	
+			}
+			
+		}
+		if((firstLoad==1 && toolbarStatus!=changeTo) 
+			|| (firstLoad==0 && changeTo==1))
+		{
+			addDebug(0, "Attempting to toggle toolbar.<Br>");	
+			hideBookmarks();
+			hideDomains();
+			fixPositions();
+		}
+		if(toolbarStatus==0)
+		{
+			hideDebug();
+		}
+		if(firstLoad==0) // no longer first time toggling
+		{
+			firstLoad=1;
+		}
+
+	} // end of toggleTb
+
+	
+	addDebug(1, "Page loaded.<br>");
+	
+	/* 
 		Start of Variables and settings
 		Note, some settings are later, or at the top of
 		background.js 
 	*/
 	
-	var toolbarColor="#8C2633";   // Colour: Maroon
+	var toolbarColor="#6E0408";   // Colour: Maroon matches smu rgb(110, 4, 8)
 								  // Pantone value: Pantone 202C
 	var toolbarHeight="32px";     // height of tool bar in pixels  was 24, trying 32
 	var toolbarHeightText="32";   // height of tool bar in pixels  was 24, trying 32
 	var toolbarWithBorder="30px"; //	toolbarHeight-2 px (2*1px border)								  
 										  
-	var recentBMColor="#5e99aa"; 	// Colour: Blue
+	var recentBMColor="#6BA4B8"; 	// Colour: Blue
 							        // Pantone value: Pantone 549C
-							        
+							          // was  #5e99aa before #6BA4B8
+							          
+	var toolbarFontFamily="Helvetica Neue";//"//'"Lato", "Helvetica Neue", Helvetica, Arial, sans-serif';
+					
+					
 	var shieldImage="resource-image://logo32_32.png"; // not used yet, hard coded 
 	
 	var bookmarkBackground="#D9C89E"; // main bookmarks
 							   		  // shown when shield is clicked
 							          // pantone 7501C  sand
+							          // was  #D9C89E before #53565A
 				
 	var mainBMHeight="600px";
 	var mainBMWidth="35%";
 	var defaultSearchTarget=0; // 0 = same page, 1 = new tab
-	var fontFamily="Lucida Grande";
-	var fontSize="medium";
+	var fontFamily=toolbarFontFamily;//"Lucida Grande";
+	var fontSize="16px";//"medium";
 	
 	
 	var debugLevel=0;	// -1 = off
 						// shows debugLevel or higher
+	var resetDebugAfter=100; // after 100 debug msgs, reset it to save space/resources
+	var resetDebugCount=0; // reset when resetDebugCount==resetDebugAfter
 	
 	/*
 		Search domains must be in the format of
@@ -91,11 +162,13 @@ appAPI.ready(function($) { // put all code within the ready scope
 		searchDomains[1][0]="SMU"; 							     // title
 		searchDomains[1][1]="http://www.smu.ca/searchresults.html?q=SEARCH_TERM&sa=Search"; // search url
 		
-	var currentDomain=0;	// points to the search domain the user currently has selected
+	var currentDomain=1;	// points to the search domain the user currently has selected
 	
-
-	var searchBoxBackground="white";
-	var searchBoxFontColor="black";
+	var fontColor="white";
+	
+	
+	var searchBoxBackground="#D9C89E";  // was white before #D9C89E
+	var searchBoxFontColor="white"; // was black before #862633
 	var searchBoxHeight=(toolbarHeightText/2)+'px';
 	var searchBoxWidth="150px";
 	
@@ -166,10 +239,32 @@ appAPI.ready(function($) { // put all code within the ready scope
 	*/
 	function loadUI ()
 	{
+	
 		addDebug(1, "Initialising UI.<br>");
 		
+		var insertWhere='head';
+		
+
+  
+  
+		if($('head').length)
+		{
+			insertWhere='head';
+		}
+		else if($('body').length)
+		{
+			insertWhere='body';
+		}
+		else
+		{
+			insertWhere='html';
+			if(debugLevel!=-1)
+			{
+				alert("(DEBUG) Toolbar inserted into HTML. ");
+			}
+		}
 		/* our main toolbar */
-		$('<div id="SMUTHolder">' +
+		var theToolbar=$('<div id="SMUTHolder">' +
 				'<div id="toolbardiv">' +
 					'<div id="smu-shield">'+
 					'</div>'+
@@ -187,9 +282,17 @@ appAPI.ready(function($) { // put all code within the ready scope
 						'</div>'+
 					'</div>'+
 				'</div>' +
-			'</div>')
-		.insertAfter('head'); // keep this as insert after head, it seems
+			'</div>');
+			if(insertWhere!='html')
+			{
+			theToolbar.insertAfter(insertWhere); // keep this as insert after head, it seems
 							  // to fix position issues on 99% of websites
+			}
+			else
+			{
+			theToolbar.appendTo(insertWhere); // keep this as insert after head, it seems
+							  // to fix position issues on 99% of websites	
+			}
 		
 		/* dropdown bookmark container */
 		$('<div id="bookmarksMain">' +
@@ -226,7 +329,6 @@ appAPI.ready(function($) { // put all code within the ready scope
 		});
 		
 
-		$('#smu-shield').css({float:'left', 'padding-left':'2px'});
 
 		/* 
 			resetClass allows us to clear out any CSS the 
@@ -246,9 +348,10 @@ appAPI.ready(function($) { // put all code within the ready scope
 			'clear':'none',
 			'cursor':'default',
 			'float':'none',
-			'font-family':'Lucida Grande', 
+			'font-family':toolbarFontFamily, 
 			'font-size':'medium',
 			'font-style':'normal',
+			'color':fontColor,
 			'font-weight':'normal',
 			'height':toolbarHeight,
 			'left':'auto',
@@ -299,6 +402,7 @@ appAPI.ready(function($) { // put all code within the ready scope
 		
 		$('#changeDomain').removeClass();
 		
+		$('#smu-shield').removeClass();
 	
 		
 		
@@ -311,8 +415,22 @@ appAPI.ready(function($) { // put all code within the ready scope
 		$('#changeDomain').css(resetClass);	
 		$('#bm-search').css(resetClass);
 		$('#bm-recent-container').css(resetClass);
+		$('#bm-recent-container').css(resetClass);
+		
+		
+		
 		
 		/* proceed with setting css as needed */
+		
+		$('#smu-shield').css({float:'left', 'padding-left':'2px', 
+			'cursor':'pointer', 
+			'vertical-align':'top',
+			'margin':'0px'
+		});
+		
+
+
+
 		$('#SMUTHolder').css({
 			'margin':'0',
 			'padding':'0',
@@ -322,7 +440,7 @@ appAPI.ready(function($) { // put all code within the ready scope
 			'clear':'none',
 			'cursor':'default',
 			'float':'none',
-			'font-family':'Lucida Grande',
+			'font-family':toolbarFontFamily,//'Lucida Grande',
 			'font-size':'medium',
 			'font-style':'normal',
 			'font-weight':'normal',
@@ -423,10 +541,10 @@ appAPI.ready(function($) { // put all code within the ready scope
 			'left':'0px',
 			'letter-spacing':'normal',
 			'line-height':'normal',
-			'max-height':'none',
-			'max-width':'45%',
+			'max-height':'80%',
+			'max-width':'10%',
 			'min-height':'0',
-			'min-width':'0',
+			'min-width':'150px',
 			'overflow':'visible',
 			'position':'static',
 			'right':'auto',
@@ -439,7 +557,7 @@ appAPI.ready(function($) { // put all code within the ready scope
 			'white-space':'normal',
 			'width':'auto',
 			'z-index':'auto',
-			'font-family':'Lucida Grande',
+			'font-family':toolbarFontFamily,//'Lucida Grande',
 			'background-color':recentBMColor,
 			'padding-left':'4px',
 			'padding-right':'4px',
@@ -459,7 +577,9 @@ appAPI.ready(function($) { // put all code within the ready scope
 			padding: 0,
 			position:'fixed',
 			left:0, top:toolbarHeight,
-			'z-index':'999999999999'
+			'z-index':'999999999999',
+			'overflow-y':'auto'
+    
 		});
 		
 		
@@ -495,7 +615,7 @@ appAPI.ready(function($) { // put all code within the ready scope
 			'white-space':'normal',
 			'width':'auto',
 			'z-index':'auto',
-			'font-family':'Lucida Grande',
+			'font-family':toolbarFontFamily,//'Lucida Grande',
 			'background-color':recentBMColor,
 			'padding-left':'4px',
 			'padding-right':'0px',
@@ -515,7 +635,8 @@ appAPI.ready(function($) { // put all code within the ready scope
 			padding: 0,
 			position:'fixed',
 			left:'auto', top:toolbarHeight,
-			'z-index':'999999999999'
+			'z-index':'999999999999',
+			'margin-right':'10px'
 		});
 	
 	
@@ -546,33 +667,39 @@ appAPI.ready(function($) { // put all code within the ready scope
 			'float':'none',
 			'left':'auto',
 			'margin':'0px',
-			'height':searchBoxHeight,
+			'height':'auto',//searchBoxHeight,
+			'max-height':toolbarHeight,
+			'min-height':'0',
 			'padding':'0px',
 			'position':'static',
 			'right':'auto',
 			'top':'2px',
-			'width':searchBoxWidth
+			'width':searchBoxWidth,
+			
+			'line-height':'normal'
 		});	
 		
 		$('#searchTerm').css({
 			'vertical-align':''
 		});	
 		
-		$('#searchGo').attr('style', 'font-family: Lucida Grande !important; font-size: medium !important');
+		$('#searchGo').attr('style', 'font-family: '+fontFamily+' !important; font-size: '+fontSize+' !important; font-weight: normal !important');
 		$('#searchGo').css({
 			'display':'inline-block',
 			'right':'0px',
+			'border-radius': '0px',
+			'box-shadow': '0 0px 0px rgba(0, 0, 0, 0.3), 0 0px 0 rgba(255, 255, 255, 0.4) inset',
 			'width':'auto',
+			'cursor':'pointer',
 			'height':'auto',			
 			'letter-spacing': '0px',
 			'text-decoration': 'none',
 			'text-transform': 'none',
 			'left':'auto',
 			'float':'none',
-			'font-family':'Lucida Grande !important',
-		    'font-size':'medium !important',
-		    'font-style':'normal !important',
-		    'font-weight':'normal !important',
+		    //'font-size':'medium !important',
+		    //'font-style':'normal !important',
+		    //'font-weight':'normal !important',
      		'background-color':'black',
      		'color':'white',
      		'border': '1px solid #000000',
@@ -580,15 +707,24 @@ appAPI.ready(function($) { // put all code within the ready scope
     		'box-shadow': '0 2px 1px rgba(0, 0, 0, 0.3), 0 1px 0 rgba(255, 255, 255, 0.4) inset',
 			'margin': '0',
 			'padding': '0',
-			'position':'static'
+			'position':'static',
+			'line-height':'normal',
+			'margin-right':'5px',
+			'margin-left':'5px',
+			'background-image':'none'
 		});
 		
 		    
   
 
-		$('#changeDomain').attr('style', 'font-family: Lucida Grande !important; font-size: medium !important');
+		$('#changeDomain').attr('style', 'font-family: '+fontFamily+' !important; font-size: '+fontSize+' !important; font-weight: normal !important');
 		$('#changeDomain').css({
+			'box-sizing':'border-box',
+  'background-clip':'padding-box',
+  'border-radius':'0',
+  'webkit-appearance': 'none',
 			'display':'inline-block',
+			'cursor':'pointer',
 			'right':'0px',			
 			'width':'auto',
 			'height':'auto',
@@ -597,10 +733,10 @@ appAPI.ready(function($) { // put all code within the ready scope
 			'text-transform': 'none',
 			'left':'auto',
 			'float':'none',
-			'font-family':'Lucida Grande !important',
-		    'font-size':'medium !important',
-		    'font-style':'normal !important',
-		    'font-weight':'normal !important',
+		//	'font-family':'Lucida Grande !important',
+		    //'font-size':'medium !important',
+		   // 'font-style':'normal !important',
+		   // 'font-weight':'normal !important',
      		'background-color':'black',
      		'color':'white',
      		'border': '1px solid #000000',
@@ -608,7 +744,10 @@ appAPI.ready(function($) { // put all code within the ready scope
     		'box-shadow': '0 2px 1px rgba(0, 0, 0, 0.3), 0 1px 0 rgba(255, 255, 255, 0.4) inset',
 			'margin': '0',
 			'padding': '0',
-			'position':'static'
+			'position':'static',
+			'line-height':'normal',
+			'margin-right':'10px',
+			'background-image':'none'
 		});
 		/*
 		var searchGoHeight=$("#searchGo").height();
@@ -646,17 +785,30 @@ appAPI.ready(function($) { // put all code within the ready scope
 		$('#domainMain').hide();    // domain container
 		$('#searchDomain').hide();    // this is a holder for processing, keep it hidden
 
+
+		/* set title of domain toggle so user knows what they are searching with */
+		setDomainTitle();
+		
+		
 		/* load the smu shield image */
 		appAPI.resources.createImage(
-        	'<img src="resource-image://logo32_32.png" width="32" height="32" />'
+        	'<img style="vertical-align:top" id="shieldImage" src="resource-image://logo32_32.png" width="32" height="32" />'
     	).appendTo('#smu-shield');
     	
-		fixPositions();
+    	
+    	
+		
+		
+    	var changeIt=getToolbarStatus();
+    	console.log("changeIt: "+changeIt);
+		toggleTb(changeIt); // if we need to turn on toolbar, fixed CSS issues
+		// background will tell toolbar to turn on if needed shortly
+		
 		
 		addDebug(1, "Finished Initialising UI.<br>");
 	} // end of loadUI()
 
-
+ 
 
 	/*
 		Because we inject our toolbar, we must fix certain
@@ -668,66 +820,228 @@ appAPI.ready(function($) { // put all code within the ready scope
 		alternatively, a program could be made that goes through
 		all css to bring everything down by toolbarheight but
 		this can be inefficient
+		
+		if the toolbar is being turned off, the function will
+		attempt to reverse the css changes
 	*/
 	function fixPositions ()
 	{
-		var bodyMoved=0;
-		if (!appAPI.isMatchPages("*.google.ca/*"))
-		{
 
-			addDebug(1, "Moving margin top down by "+toolbarHeight+".<br>");
-			$("body").css({'margin-top':toolbarHeight}); // move page down, works 99% of the time
-			//bodyMoved=1;
+		/* toolbar elements not to move */
+		var toolbarIDs=new Array("SMUTHolder","toolbardiv","bm-search","bookmarksMain","debugMsg","domainMain");
+
+		var fixedAlready=0;
+		
+		/* toggle toolbar */
+        if(toolbarStatus==0)
+		{
+			addDebug(0,"Toolbar opening<Br>");
+			toolbarStatus=1;
+			$("#SMUTHolder").show();
 		}
-
-		/*
-		we dont use frames anymore, but if it was enabled this is how it is done
-		if (!appAPI.dom.isIframe()) // only works if iframes turned on
+		else
 		{
-
-			if (!appAPI.isMatchPages("mail.google.com/*"))
+			addDebug(0,"Toolbar closing<Br>");
+			$("#SMUTHolder").hide();
+			toolbarStatus=0;
+		}
+		
+		if (!appAPI.isMatchPages("https://www.google.ca/maps/") && !appAPI.isMatchPages("https://www.google.com/maps/"))
+		{	
+		
+			if(toolbarStatus==1)
+			{		
+				if($("head").length) // in chrome we must test this value is not null, in FF we dont as it always will return not null
+					$("head").css({'margin-bottom':'32px'});
+				
+				if(appAPI.isMatchPages("facebook.com/*"))
+				{
+					if($("body").length)
+						$("body").css({'right':'0px', 'left':'0px','margin-top':'32px'}); // cant use absolute on facebook
+				}
+				else
+				{
+					if($("body").length)
+						$("body").css({'right':'0px', 'left':'0px', 'position':'absolute','margin-top':'32px'});
+				}
+			}
+			else // toolbar turning off
 			{
-				addDebug(1, "Moving margin top down by "+toolbarHeight+".<br>");
-				$("body").css({'margin-top':toolbarHeight}); // move page down, works 99% of the time
+				if($("head").length) // in chrome we must test this value is not null, in FF we dont as it always will return not null
+					$("head").css({'margin-bottom':'0px'});
+				
+				if(appAPI.isMatchPages("facebook.com/*"))
+				{
+					if($("body").length)
+						$("body").css({'right':'0px', 'left':'0px', 'margin-top':'0px'});	
+				}
+				else
+				{
+					if($("body").length)
+						$("body").css({'right':'0px', 'left':'0px', 'position':'absolute', 'margin-top':'0px'});		
+				}
+			}
+			
+		}
+		else
+		{
+			// on google maps
+			if(toolbarStatus==1)
+			{
+				$("body").css({'right':'0px', 'left':'0px', 'position':'absolute','margin-top':'32px', 'height':'100%'});
 			}
 			else
 			{
-				addDebug(1, "Detected mail.google.com/* page. Not resizing top margin.<br>");
-			
+				$("body").css({'right':'0px', 'left':'0px', 'position':'absolute','margin-top':'0px', 'height':'100%'});
 			}
-
-		}
-		*/
-		
-		/* specific web pages */
-		//if ((bodyMoved==0 && !appAPI.isMatchPages("google.ca") && 
-		if((!appAPI.isMatchPages("google.com")) && ( appAPI.isMatchPages("google.com/?*") || appAPI.isMatchPages("*.google.com/*") || appAPI.isMatchPages("google.ca/?*")))
-		{
-			$(".gb_ub").css({'margin-top':toolbarHeight});
-			$(".gb_Ua").css({'margin-top':toolbarHeight});
-			$("#gb").css({'margin-top':toolbarHeight});
-			$("#gba").css({'margin-top':toolbarHeight});
-			$("#mngb").css({'margin-top':toolbarHeight});
 		}
 
 		
+		if($("#tumblr_controls").length && $("#tumblr_controls").offset()!=null)
+		{	
+			if(toolbarStatus==1)
+			{
+				var previousTop=$("#tumblr_controls").offset().top;	
+				var newTop=parseInt(previousTop, 10)+parseInt(toolbarHeightText)+1;
+				newTop=newTop+'px';	
+				if(parseInt(previousTop,10)<parseInt(toolbarHeightText,10))
+				{	
+					addDebug(0, "Detected tumblr controls overlapping the toolbar. Moving the controls down.");
+					$("#tumblr_controls").css({'top':newTop});
+				}
+			}
+			else
+			{
+				var previousTop=$("#tumblr_controls").offset().top;	
+				var newTop=parseInt(previousTop, 10)-parseInt(toolbarHeightText)+1;
+					
+				if(parseInt(newTop,10)<parseInt(toolbarHeightText,10))
+				{	
+					newTop=newTop+'px';
+					addDebug(0, "Detected tumblr controls overlapping the toolbar. Moving the controls down.");
+					$("#tumblr_controls").css({'top':newTop});
+				}	
+			}
+		}
+
+		
+	
 		if (appAPI.isMatchPages("facebook.com/*"))
 		{
-			addDebug(1, "Detected facebook.com. Moving .fixed_elem and .fbChatSidebar down by "+toolbarHeight+".<br>");
-			$(".fixed_elem").css({'margin-top':toolbarHeight});	
-			$(".fbChatSidebar").css({'top':toolbarHeight});	
+			if(toolbarStatus==1)
+			{
+		
+				addDebug(1, "Detected facebook.com. Moving .fixed_elem and .fbChatSidebar down by "+toolbarHeight+".<br>");
+				if($(".fixed_elem").length)
+					$(".fixed_elem").css({'margin-top':toolbarHeight});	
+				if($(".fbChatSidebar").length)
+					$(".fbChatSidebar").css({'top':toolbarHeight});	
 			
-			
+			}
+			else
+			{
+				addDebug(1, "Detected facebook.com. Moving .fixed_elem and .fbChatSidebar down up "+toolbarHeight+".<br>");
+				if($(".fixed_elem").length)
+					$(".fixed_elem").css({'margin-top':'0px'});	
+				if($(".fbChatSidebar").length)
+					$(".fbChatSidebar").css({'top':'0px'});	
+			}
 			
 		}
+		
+		
+		
 		if (appAPI.isMatchPages("twitter.com/*"))
 		{
-			addDebug(1, "Detected twitter.com. Moving .topbar down by "+toolbarHeight+".<br>");
-			$(".topbar").css({top:toolbarHeight});	
+			if(toolbarStatus==1)
+			{
+				addDebug(1, "Detected twitter.com. Moving .topbar down by "+toolbarHeight+".<br>");
+				if($(".topbar").length)
+					$(".topbar").css({top:toolbarHeight});	
+			}
+			else
+			{
+				addDebug(1, "Detected twitter.com. Moving .topbar down by "+toolbarHeight+".<br>");
+				if($(".topbar").length)
+					$(".topbar").css({top:'0px'});	
+			}
 		}
-        			
-        			
-        			
+		
+		//var msg=""; // leftover debug message
+		//var msg2="";
+		
+        /* after all changes, detect if a element is still on the toolbar, if so move it*/
+        if(!appAPI.isMatchPages("facebook.com/*"))
+		{
+			
+	        if(toolbarStatus==1)
+			{
+	
+		        $('*').filter(function() {
+					if($(this).css("position") === 'fixed')
+					{
+						if($(this).offset().top<parseInt(toolbarHeightText,10))
+						{
+							var theID=$(this).attr('id');
+							
+							var foundItem=isInArray(toolbarIDs,theID); // dont move the actual toolbar
+							if(foundItem==0)
+							{
+								var newTop=parseInt($(this).css('margin-top'),10);
+									newTop=parseInt(newTop,10)+parseInt(toolbarHeightText,10);
+									newTop=newTop+'px';
+									
+								$(this).css({'margin-top':newTop});
+								if($(this).attr('id')=="blueBar")
+								{
+									var num=$(this).css('margin-top');
+								}
+								var num=$(this).css('margin-top');
+							
+								addDebug(0, "Found element "+$(this).attr('id')+ " which is being moved out of toolbars way.<br>");
+								
+								//msg+="Found element "+$(this).attr('id')+ " which is being moved by "+newTop+"<br>"; // leftover debugging
+								
+							}
+							else
+							{
+								//msg2+="Found element "+theID+ " which wont change<br>";// leftover debugging
+							}
+						}
+					}
+		        });
+	
+	
+			}
+			else
+			{
+		 		$('*').filter(function() {
+					if($(this).css("position") === 'fixed')
+					{
+						if($(this).offset().top<(toolbarHeightText*2-1))
+						{
+							var theID=$(this).attr('id');
+							
+							var foundItem=isInArray(toolbarIDs,theID); // dont move the actual toolbar
+							if(foundItem==0)
+							{
+								console.log("1<br>");
+								var newTop=parseInt($(this).css('margin-top'),10);
+									newTop=newTop-parseInt(toolbarHeightText,10);
+									newTop=newTop+'px';
+					
+								var num=$(this).css('margin-top');
+								$(this).css({'margin-top':newTop});
+	
+								addDebug(0, "Found element "+$(this).attr('id')+ " which is being moved by "+newTop+"<br>");
+	
+							}
+						}
+					}
+				});
+		
+			}
+		}			
 	} // end of fixPositions()
 
 	/*
@@ -736,9 +1050,24 @@ appAPI.ready(function($) { // put all code within the ready scope
 	*/
 	function addDebugFromBackground (level, debug)
 	{
-		addDebug(level, debug);
+		addDebug(level, "(bck)"+debug+"(bck)");
 	}
 	
+
+	/* determine if term is in theArray */
+	function isInArray(theArray,term)
+	{
+
+		for(var i = 0; i < theArray.length; i++)
+		{
+			if(theArray[i] == term)
+			{
+				return 1;
+			}
+			
+		}
+		return 0;
+	}
 
 	/*
 		addDebug allows for displaying debugging messages to the user
@@ -753,6 +1082,8 @@ appAPI.ready(function($) { // put all code within the ready scope
 		0 = Info
 		1 = Warning
 		2 = Error
+		
+		if paused (pauseDebug) == 1, then debugger wont update
 	*/
 	function addDebug (level, debug)
 	{
@@ -766,7 +1097,7 @@ appAPI.ready(function($) { // put all code within the ready scope
 			return;
 		}
 
-		if(debugLevel!=-1) 		   // make sure debug is on
+		if(debugLevel!=-1 && pauseDebug!=1) 		   // make sure debug is on
 		{
 			if(level>=debugLevel)  // debug message level is >= current debug level 
 			{
@@ -790,6 +1121,13 @@ appAPI.ready(function($) { // put all code within the ready scope
 				    	this is highly inefficient and could be made better
 				    	it can slow down the browser on level 0 (show all)
 				    */
+				    if(resetDebugCount>resetDebugAfter)
+				    {
+				    	$("#debugMsg").html("");
+				    	resetDebugCount=0;
+				    }
+				    else
+				    	resetDebugCount++;
 					$("#debugMsg").html(debug+"<Br>"+$("#debugMsg").html());
 				}
 			}
@@ -802,14 +1140,11 @@ appAPI.ready(function($) { // put all code within the ready scope
 	appAPI.shortcut.add("Ctrl+X", function(event) {
 			if(debugStatus==0)  // debug window is closed, open it
 			{
-				debugStatus=1;
-				$("#debugMsg").show();
-				addDebug(1, "Debug window opened!<br>");
+				showDebug();
 			}
 			else		        // debug window is open, close it
-			{	debugStatus=0;
-				$("#debugMsg").hide();	
-				addDebug(1, "Debug window closed!<br>");	
+			{	
+				hideDebug();
 			}
 		}, {
 			// Options
@@ -818,6 +1153,44 @@ appAPI.ready(function($) { // put all code within the ready scope
 			disable_in_input: true,
 			target: document
     });
+    
+    var pauseDebug=0; // 0 is unpaused, 1 is paused
+    /* add the shortcut for opening and closing the debugger */
+	appAPI.shortcut.add("Ctrl+Q", function(event) {
+			if(pauseDebug==0)  
+			{
+				pauseDebug=1;
+			}
+			else		        
+			{	
+				pauseDebug=0;
+			}
+		}, {
+			// Options
+			type: 'keydown',
+			propagate: true,
+			disable_in_input: true,
+			target: document
+    });
+    
+    /* shows debug menu */
+    function showDebug()
+    {
+		debugStatus=1;
+		$("#debugMsg").show();
+		addDebug(1, "Debug window opened!<br>");
+
+    }
+    
+    /* hides debug menu */
+    function hideDebug()
+    {
+    	debugStatus=0;
+		$("#debugMsg").hide();	
+		addDebug(1, "Debug window closed!<br>");
+    	
+    }
+    
     
     /*
     	updateFromDB gets the database data on the bookmarks
@@ -867,17 +1240,44 @@ appAPI.ready(function($) { // put all code within the ready scope
 				if(theDo=="update")
 				{
 					addDebug(0, "notifyAction is attempting to get the DB data.<br>");
+					
+					/* check if search domain needs to be updated */
+					
+					
+				
+					var testDomain=getCurrentDomain();
+					if(currentDomain!=testDomain)
+					{
+						changeSearchDomain(testDomain);
+					}
+					
+					
+					
+					/* check on bookmarks */
 					appAPI.db.async.get("bookmarks", function(value) {
-						allBMs=value; // update current BM values
+						
 						if(value==null)
 						{
 							addDebug(1, "notifyAction got the saved data and returnBM was null.<br>");
 						}
 						else
 						{
-							addDebug(0, "notifyAction got the saved data and saw "+value.length+" SMUT bookmarks.1.<br>");
-							setupBookmarks(value);	// update UI with the BMs
-							addDebug(0, "notifyAction got the saved data and saw "+value.length+" SMUT bookmarks.1.<br>");
+							if(isDifferent(allBMs,value)==1)
+							{
+								allBMs=value; // update current BM values
+								addDebug(0, "notifyAction got the saved data and saw "+value.length+" SMUT bookmarks.1.<br>");
+								setupBookmarks(value);	// update UI with the BMs
+								addDebug(0, "notifyAction got the saved data and saw "+value.length+" SMUT bookmarks.1.<br>");
+						
+						
+							
+							
+							}
+							else
+							{
+								addDebug(0, "notifyAction current bookmarks and new are the same, no update required.<br>");
+						
+							}
 						}
 					});	
 				}
@@ -886,6 +1286,85 @@ appAPI.ready(function($) { // put all code within the ready scope
 			addDebug(0, "Exited notifyAction <br>");
     } // end of notifyAction()
     
+    
+    /*
+    	similar to compareDBToFolder from background
+    */
+    function isDifferent(theBMs,compareWith)
+    {
+
+    	var SMUTBMs=theBMs;
+
+    	var stopped=0;
+    	var difference=0; 
+    	if(SMUTBMs==null || SMUTBMs.length == 0)
+    	{
+			// same as having a difference
+    		stopped=1;
+    	}
+    	else
+    	{
+    	//	sendDebug(0, "compareDBToFolder: SMUTBMs was not null.<br>");
+    	}
+    	
+    	if(stopped!=0)
+    	{
+			// same as having a difference
+    		return 1;
+    	}
+    	if(compareWith==null || compareWith.length == 0)
+    	{
+    		stopped=2;
+    	}
+    	else
+    	{
+			// do nothing
+    	}
+    	if(stopped!=0)
+    	{
+
+			// same as having a difference
+    		return 1;
+    	} 
+    	
+    	// both are not null, compare length
+    	if(SMUTBMs.length == compareWith.length)
+    	{
+
+    		// compare the values
+    		for(var i=0; i<SMUTBMs.length; i++)
+    		{
+    				if(SMUTBMs[i][0]!=compareWith[i][0] 
+    					|| SMUTBMs[i][1]!=compareWith[i][1]
+    					|| SMUTBMs[i][2]!=compareWith[i][2])
+    					{ 
+    						difference=1;
+
+    					}	
+    		}	
+    		
+    	}
+    	else
+    	{
+    		difference=1;	
+    	}
+    	
+    	if(difference==1) 
+    	{
+    		return 1;
+
+    	}
+    	else
+    	{
+    		
+    		return 0;
+    		
+    	}
+    	
+
+    	
+    	
+    } // end of isDifferent
     
     /*
     	given an array of BMs setupBookmarks will
@@ -939,24 +1418,35 @@ appAPI.ready(function($) { // put all code within the ready scope
 		
 		Some css is done here
 	*/	
+	
+	//toolbarFontFamily='\"Lato\", \"Helvetica Neue\", Helvetica, Arial, sans-serif';
+	
 	function updateBMMainUI ()
 	{
 		addDebug(0, "Entered updateBMMainUI<br>");
 		deleteMain(); // empty out UI container
 		for(var i = 0; i < mainBMptr.length; i++)
 		{
-			$(' <div id="main_'+i+'" data-which="'+i+'" title="'+allBMs[mainBMptr[i]][0]+' - '+allBMs[mainBMptr[i]][1]+'" >'+allBMs[mainBMptr[i]][0]+'</div> ').css({
+			$(' <div id="main_'+i+'" data-which="'+i+'" title="'+allBMs[mainBMptr[i]][0]+' - '+allBMs[mainBMptr[i]][1]+'" >'+allBMs[mainBMptr[i]][0]+'</div> ')
+			.attr('style', 'font-family: '+fontFamily+' !important; font-size: '+fontSize+' !important; font-weight: normal !important; font-style: norma !important;')
+			.css({
 				'overflow':'hidden',
 				'background-color':recentBMColor,
+				'color':fontColor,
+				'cursor':'pointer',
+				'font-family':toolbarFontFamily,//'"Lato", "Helvetica Neue", Helvetica, Arial, sans-serif', // toolbarFontFamily='"Lato", "Helvetica Neue", Helvetica, Arial, sans-serif';
 				'padding-left':'4px',
 				'padding-right':'4px',
 				'margin':'5px',
 				'-moz-border-radius':'10px 10px 10px 10px', // rounds corners for firefox
 				'border-radius':'10px 10px 10px 10px', //rounds corners for other browsers
 				'border':'solid 1px #000',
-				'height':toolbarWithBorder, // minus the border
-				'line-height':toolbarWithBorder, // minus the border
+				'height':toolbarHeight,//toolbarWithBorder, // minus the border
+				'line-height':toolbarHeight,//toolbarWithBorder, // minus the border
 				'v-align':'middle',
+				'-webkit-box-sizing': 'border-box', /* Safari/Chrome, other WebKit */
+				'-moz-box-sizing': 'border-box',    /* Firefox, other Gecko */
+				'box-sizing': 'border-box'        /* Opera/IE 8+ */
 			})
 			.appendTo('#bookmarksMain').on("click", function(){ 
 				addDebug(0, "Clicked a main bookmark.<br>");
@@ -982,14 +1472,16 @@ appAPI.ready(function($) { // put all code within the ready scope
 		deleteRecent(); // empty out UI container
 		for(var i = 0; i < recentBMptr.length; i++)
 		{
-			$(' <div id="recent_'+i+'" data-which="'+i+'" title="'+allBMs[recentBMptr[i]][0]+' - '+allBMs[recentBMptr[i]][1]+'">'+allBMs[recentBMptr[i]][0]+'</div> ').css({
+			$(' <div id="recent_'+i+'" data-which="'+i+'" title="'+allBMs[recentBMptr[i]][0]+' - '+allBMs[recentBMptr[i]][1]+'">'+allBMs[recentBMptr[i]][0]+'</div> ')
+			.attr('style', 'font-family: '+fontFamily+' !important; font-size: '+fontSize+' !important;')
+			.css({
 			'margin':'0',
 			'padding':'0',
 			'background':'white',
+			'color':fontColor,
 			'border':'none',
 			'bottom':'auto',
 			'clear':'none',
-			'cursor':'default',
 			'float':'none',
 			'font-size':'medium',
 			'font-style':'normal',
@@ -1013,7 +1505,6 @@ appAPI.ready(function($) { // put all code within the ready scope
 			'white-space':'normal',
 			'width':'150px',
 			'z-index':'auto',
-			'font-family':'Lucida Grande',
 			'background-color':recentBMColor,
 			'padding-left':'4px',
 			'padding-right':'4px',
@@ -1022,14 +1513,19 @@ appAPI.ready(function($) { // put all code within the ready scope
 			'-moz-border-radius':'10px 10px 10px 10px', // rounds corners for firefox
 			'border-radius':'10px 10px 10px 10px', //rounds corners for other browsers
 			'border':'solid 1px #000',
-			'height':toolbarWithBorder, // minus the border
-			'line-height':toolbarWithBorder, // minus the border
+			'height':toolbarHeight,//toolbarWithBorder, // minus the border
+			'line-height':toolbarHeight,//toolbarWithBorder, // minus the border
 			//'line-height':toolbarHeight-'3px', // minus the border
 			'display':'inline-block',
 			'float': 'left',// fixes mismatch position on some sites
 			'width':'100px',
 			'overflow':'hidden',
-			'text-align':'center'
+			'text-align':'center',
+			'cursor':'pointer',
+			'font-family':toolbarFontFamily,
+			'-webkit-box-sizing': 'border-box', /* Safari/Chrome, other WebKit */
+			'-moz-box-sizing': 'border-box',    /* Firefox, other Gecko */
+			'box-sizing': 'border-box'        /* Opera/IE 8+ */
 			})
 			.appendTo('#bm-recent-container').on("click", function(){ 
 				addDebug(1, "Clicked a RECENT bookmark.<br>");
@@ -1085,18 +1581,54 @@ appAPI.ready(function($) { // put all code within the ready scope
 		{
 			addDebug(0, "Opening domains.<br>");
 			setupDomains();
-			$('#domainMain').show();
-			$('#changeDomain').attr('value',searchDomainTextOn);
-			clickedDomains=1;
+			showDomains();
 		}
 		else	// shield is active, deactivate it
 		{
 			addDebug(0, "Closing domains.<br>");
-			$('#domainMain').hide();
-			$('#changeDomain').attr('value',searchDomainTextOff);
-			clickedDomains=0;
+			hideDomains();
 		}
 	});
+	
+	/* show the domain container */
+	function showDomains()
+	{
+		$('#domainMain').show();
+		$('#changeDomain').attr('value',searchDomainTextOn);
+		clickedDomains=1;
+		
+	}
+	
+	/* hide the domain container */
+	function hideDomains()
+	{
+		$('#domainMain').hide();
+		$('#changeDomain').attr('value',searchDomainTextOff);
+		clickedDomains=0;
+		
+	}
+	
+	/* handle automatically closing the domain container */
+	$(document).mouseup(function (e)
+	{
+    	var container = $("#domainMain");
+
+		
+    	if (!container.is(e.target) // clicked outside of the search holder
+        	&& container.has(e.target).length === 0) // check the search container (ie domains)
+    	{
+	        container = $("#changeDomain");
+
+		
+    		if (!container.is(e.target) // clicked outside of the domain toggle
+        		&& container.has(e.target).length === 0) // check the container
+    		{
+	        	hideDomains();
+    		}
+    	}
+	});
+	
+	
 		
 	/*
 		makes sure search domain container has the
@@ -1115,18 +1647,26 @@ appAPI.ready(function($) { // put all code within the ready scope
 			{
 			//	addOn="X";
 			}
-			$(' <div id="domain_'+i+'" data-which="'+i+'" title="'+searchDomains[i][0]+' - '+searchDomains[i][1]+'" >'+addOn+' '+searchDomains[i][0]+'</div> ').css({
+			$(' <div id="domain_'+i+'" data-which="'+i+'" title="'+searchDomains[i][0]+' - '+searchDomains[i][1]+'" >'+addOn+' '+searchDomains[i][0]+'</div> ')
+			.attr('style', 'font-family: '+fontFamily+' !important; font-size: '+fontSize+' !important;')
+			.css({
 				'overflow':'hidden',
 				'background-color':recentBMColor,
+				'color':fontColor,
+				'cursor':'pointer',
+				'font-family':toolbarFontFamily,
 				'padding-left':'4px',
 				'padding-right':'4px',
 				'margin':'5px',
 				'-moz-border-radius':'10px 10px 10px 10px', // rounds corners for firefox
 				'border-radius':'10px 10px 10px 10px', //rounds corners for other browsers
 				'border':'solid 1px #000',
-				'height':toolbarWithBorder, // minus the border
-				'line-height':toolbarWithBorder, // minus the border
+				'height':toolbarHeight,//toolbarWithBorder, // minus the border
+				'line-height':toolbarHeight,//toolbarWithBorder, // minus the border
 				'v-align':'middle',
+				'-webkit-box-sizing': 'border-box', /* Safari/Chrome, other WebKit */
+				'-moz-box-sizing': 'border-box',    /* Firefox, other Gecko */
+				'box-sizing': 'border-box'        /* Opera/IE 8+ */
 			})
 			.appendTo('#domainMain').on("click", function(){ 
 				addDebug(0, "Clicked a search domain.<br>");
@@ -1170,6 +1710,30 @@ appAPI.ready(function($) { // put all code within the ready scope
 			hideBookmarks();
 		}
 	}
+	
+	/* handle closing the bookmarks container if you click outside of the container */
+	$(document).mouseup(function (e)
+	{
+    	var container = $("#bookmarksMain");
+
+		
+    	if (!container.is(e.target) // clicked outside of the bookmark holder
+        	&& container.has(e.target).length === 0) // check the bookmark container (ie bookmarks)
+    	{
+	        container = $("#smu-shield");
+
+		
+    		if (!container.is(e.target) // clicked outside of the shield
+        		&& container.has(e.target).length === 0) // check the shield container
+    		{
+	        	hideBookmarks();
+    		}
+    	}
+	});
+
+
+	
+	
 	
 	/*
 		Shows the bookmark container to the user
@@ -1239,6 +1803,8 @@ appAPI.ready(function($) { // put all code within the ready scope
 		var domainWithTerm=div.html();
 		addDebug(0, "current search domain with term: "+domainWithTerm+"<br>");
 		
+
+		
 		if(target==0)
 		{
 			window.location.href = domainWithTerm; // set current page to the search URL we generated
@@ -1262,7 +1828,8 @@ appAPI.ready(function($) { // put all code within the ready scope
 	*/ 	
 	function clickedDomain (which)
 	{
-		$('#domainMain').hide(); // auto hide the main BM container
+		//$('#domainMain').hide(); // auto hide the main BM container
+		hideDomains(); // hide the container and update toggle symbole
 		clickedDomains=0;
 		var theDomainPos=which.data("which"); // bookmark position as displayed on UI
 		if(searchDomains!=null && theDomainPos<searchDomains.length) // make sure we have the domain data
@@ -1270,7 +1837,7 @@ appAPI.ready(function($) { // put all code within the ready scope
 			addDebug(0, "clickedDomain search domain "+searchDomains[theDomainPos]+" was clicked.<br>");
 			currentDomain=theDomainPos;
 			changeSearchDomain(currentDomain);
-			document.getElementById('searchGo').click(); // submit the search
+			//document.getElementById('searchGo').click(); // submit the search
 			
 			
 		}
@@ -1288,13 +1855,30 @@ appAPI.ready(function($) { // put all code within the ready scope
 	function getCurrentDomain ()
 	{
 		var newCurrentDomain = appAPI.db.get("searchDomain");
+	
 		if(newCurrentDomain==null || newCurrentDomain>searchDomains.length)
 		{
-			newCurrentDomain=0;
+			newCurrentDomain=1; // default to SMU
 			addDebug(2, "getCurrentDomain had no value. Setting current domain to 0.<br>");
-			setCurrentDomain(0);
+			changeSearchDomain(1);
 		}
+	
 		return newCurrentDomain;
+	}
+		
+	function setDomainTitle ()
+	{
+		var currentTitle=getCurrentDomain();
+		setDomainToggleTitle(currentTitle);
+	}
+	function setDomainToggleTitle (newTitle)
+	{
+		newTitle="Search using: " + searchDomains[newTitle][0];
+		$("#changeDomain").attr('title',newTitle);
+		$("#searchTerm").attr('title',newTitle);
+		
+		
+		
 	}
 		
 	/*
@@ -1305,6 +1889,7 @@ appAPI.ready(function($) { // put all code within the ready scope
 		addDebug(0, "changeSearchDomain setting current DB value for domain to "+domain+".<br>");
 		currentDomain=domain;
 		appAPI.db.set("searchDomain", domain);
+		setDomainToggleTitle(currentDomain); // update title 
 	}
 	
 
@@ -1340,7 +1925,7 @@ appAPI.ready(function($) { // put all code within the ready scope
 	function clickedMain (which)
 	{
 		$('#bookmarksMain').hide(); // auto hide the main BM container
-		
+		clicked=0;
 		var theBMpos=which.data("which"); // bookmark position as displayed on UI
 		if(allBMs!=null && mainBMptr!=null && theBMpos<=mainBMptr.length) // make sure we have the bookmark data
 		{
@@ -1593,7 +2178,9 @@ appAPI.ready(function($) { // put all code within the ready scope
 	
 	});
 
+	
 	/* set up the timer to check our resize status */
+	/* also checks if the search domain changed */
     var intervalId = appAPI.setInterval(function() {
     	if(document.hidden)
     	{
@@ -1608,6 +2195,7 @@ appAPI.ready(function($) { // put all code within the ready scope
     			documentHidden=0;
     			resizes=0;
     			inResize=0;
+    			setDomainTitle(); // check if search domain changed
     			resizeNow();
     			
     		}
@@ -1701,5 +2289,50 @@ appAPI.ready(function($) { // put all code within the ready scope
 	  			
 	}
 
+
+	/* detect if there is a frame, if so, toggle menues if in iframe */
+	var noFrameShown=0;
+	function testFrameFocus()
+	{
+		var testFrame = document.getElementsByTagName("frameset")[0];
+		if(testFrame!=null)
+		{
+			addDebug(0, "Found a frame on the page!<br>");
+			
+		
+			if(document.activeElement == document.getElementsByTagName("frameset")[0]) 
+			{
+				addDebug(0, "Frame has focus!<br>");
+			} 
+			else 
+			{
+				addDebug(0, "Frame does not have focus!<br>");
+				hideBookmarks();
+				hideDomains();
+	  		}
+		}	
+		else
+		{
+			if(noFrameShown==0) // prevent the debug from being filled with same message
+			{
+				addDebug(0, "No frame on the page.<br>");
+				noFrameShown=1;
+			}
+		}
+	}
+	
+
+	window.setInterval(testFrameFocus, 1000); 
+		
+		
+	/* add google fonts */
+/*
+we get a 403 forbidden on some web pages.
+var elem = appAPI.dom.addRemoteCSS({
+        url: "//fonts.googleapis.com/css?family=Lato|Helvetica+Neue|Helvetica|Arial|sans-serif", // leave out http part so browser decides on http vs https
+        callback: function(ref) {
+            console.log(ref);
+        }
+    });*/
 		
 });
