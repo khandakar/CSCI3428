@@ -18,6 +18,9 @@ appAPI.ready(function($) {
 		} 
 	}); 
 	
+	
+	var multiFolderDetected = 0; // when SMUT folder checked, if multiple are found or multiple recent folders, this = 1
+								 // this only gets reset when the defaults are loaded
 	var forcedUpdate=1; // 0 = off, 1 = on
 						// forced update will send request to update UI
 						// regardless if a change was detecting or not
@@ -44,8 +47,8 @@ appAPI.ready(function($) {
 	/* set the image, must be a 19x19*/
 	
 	var toolbarShown=getToolbarStatus();
-	var toolbarShownIcon="icons/19_19_on.png";
-	var toolbarHiddenIcon="icons/19_19_off.png";
+	var toolbarShownIcon="icons/smu_19_19_on.png";//"icons/19_19_on.png";
+	var toolbarHiddenIcon="icons/smu_19_19_off.png";//"icons/19_19_off.png";
 	var toolbarShownText="Turn SMUT Toolbar OFF";
 	var toolbarHiddenText="Turn SMUT Toolbar ON"
 	
@@ -235,8 +238,13 @@ appAPI.ready(function($) {
     	var _nodes=[];
     	var newBookmarks=new Array();
     	var newBookmarksCount=0;
+    	var numFolder=new Array();
+    	numFolder[0]=0; // SMUT
+    	numFolder[1]=0; // SMUTRecent
     	sendDebug(0, "getSMUTBookmarks - About to enter get tree<br>");
-        	
+       
+       
+       
     	appAPI.bookmarks.getTree(function(nodes) {
     		sendDebug(0, "getSMUTBookmarks - Inside get tree<br>");
         	var result = searchRecursive(nodes[0]),
@@ -274,13 +282,13 @@ appAPI.ready(function($) {
 				{
 					if(result[i].title == "SMUT")
 					{
-
+						numFolder[0]++;
 
 						_folders.push(result[i]);
 					}
 					if(result[i].title == "SMUTRecent")
 					{
-
+						numFolder[1]++;
 						_folders.push(result[i]);
 					}
 				}
@@ -288,6 +296,10 @@ appAPI.ready(function($) {
         	}
         	sendDebug(0, "Exiting getSMUTBookmarks. Found: "+newBookmarks.length+" SMUT related bookmarks.<br>");
     	
+    		if(numFolder[0]>1 || numFolder[1]>1)
+    		{
+    			multiFolderDetected=1;
+    		}
     		_nodes=_folders.concat(_bookmarks);
     		if(returnType==2)
     		{
@@ -317,6 +329,9 @@ appAPI.ready(function($) {
 		var _nodes=[];
 		var newBookmarks=new Array();
 		var newBookmarksCount=0;
+		var numFolder=new Array();
+    	numFolder[0]=0; // SMUT
+    	numFolder[1]=0; // SMUTRecent
 		sendDebug(0, "getSMUTBookmarks - About to enter get tree<br>");
 
 		appAPI.bookmarks.getTree(function(nodes) {
@@ -356,11 +371,14 @@ appAPI.ready(function($) {
 				else
 				{
 					if(result[i].title == "SMUT")
-					{
+					{						
+						numFolder[0]++;
+
 						_folders.push(result[i]);
 					}
 					if(result[i].title == "SMUTRecent")
 					{
+						numFolder[1]++;
 
 						_folders.push(result[i]);
 					}
@@ -369,6 +387,11 @@ appAPI.ready(function($) {
 
 			}
 			sendDebug(0, "Exiting getSMUTBookmarks. Found: "+newBookmarks.length+" SMUT related bookmarks.<br>");
+
+    		if(numFolder[0]>1 || numFolder[1]>1)
+    		{
+    			multiFolderDetected=1;
+    		}
 
 			_nodes=_folders.concat(_bookmarks); // make sure folders are always before bookmarks
 			
@@ -560,7 +583,7 @@ appAPI.ready(function($) {
     	if(SMUTBMs==null || SMUTBMs.length == 0)
     	{
     		sendDebug(0, "compareDBToFolder: SMUTBMs was null/empty!.<br>");
-    		setupBrowserFolder(getDefaults());
+    		updateBrowserFolderWithData(getDefaults());// delete any left over SMUT folders then create defaultssetupBrowserFolder(getDefaults());
     		dbSaveBM(getDefaults(), "compareDBToFolder"); // make sure DB is updated with defaults
     		stopped=1;
     	}
@@ -590,6 +613,19 @@ appAPI.ready(function($) {
     		return;
     	} 
     	
+    	if(multiFolderDetected==1 || noMain(SMUTBMs) || noRecent(SMUTBMs))
+    	{
+    		sendDebug(0, "compareDBToFolder: Detected browser folder was semi empty, or multiple SMUT folders!.<br>");
+    		updateBrowserFolderWithData(getDefaults());// delete any left over SMUT folders then create defaults//setupBrowserFolder(getDefaults());
+    		dbSaveBM(getDefaults(), "compareDBToFolder"); // make sure DB is updated with defaults
+    		stopped=3;
+    		
+    	}
+    	if(stopped!=0)
+    	{
+    		sendDebug(0, "compareDBToFolder: Stop code: "+stopped+".<br>");
+    		return;
+    	} 
     	// both are not null, compare length
     	if(SMUTBMs.length == compareWith.length)
     	{
@@ -633,7 +669,48 @@ appAPI.ready(function($) {
     } // end of compareDBToFolder
     
     
+    /*
+    	given bookmarks,
+    	if no main bookmarks are present, 1 is returned
+    	0 otherwise
+    */
+    function noMain (SMUTBMs)
+    {
+    	if(SMUTBMs == null || SMUTBMs.length == 0)
+    	{
+    		return 1;
+    	}
+    	for(var i = 0; i < SMUTBMs.length; i++)
+    	{
+    		if(SMUTBMs[i][2]==0)
+    		{
+    			return 0;
+    		}
+    	}
+    	return 1;
+    }
     
+    
+    /*
+    	given bookmarks,
+    	if no recent bookmarks are present, 1 is returned
+    	0 otherwise
+    */
+    function noRecent (SMUTBMs)
+    {
+    	if(SMUTBMs == null || SMUTBMs.length == 0)
+    	{
+    		return 1;
+    	}
+    	for(var i = 0; i < SMUTBMs.length; i++)
+    	{
+    		if(SMUTBMs[i][2]==1)
+    		{
+    			return 0;
+    		}
+    	}
+    	return 1;
+    }
     /*
     	given 2 bookmark arrays it is determined if they are
     	the same or not.
@@ -937,7 +1014,7 @@ appAPI.ready(function($) {
 	function setupBrowserFolder (theBMs)
 	{
 		sendDebug(0, "setupBrowserFolder: ENTERED<br>");
-
+		
 		var newMains=seperateBMs(theBMs, 0);
 		var newRecents=seperateBMs(theBMs, 1);
 		sendDebug(0, "<b>setupBrowserFolder</b>: newMains "+newMains.length+" newRecents "+newRecents.length+" <br>");
@@ -991,6 +1068,7 @@ appAPI.ready(function($) {
 	/* simply for debugging when setupBrowserFolder is done */ 
 	function folderUpdateComplete()
 	{
+		multiFolderDetected=0;
 		sendDebug(0, "<b>folderUpdateComplete</b>: browser folder update complete.<br>");
 	
 	}
