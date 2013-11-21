@@ -16,7 +16,7 @@ console.log("Starting SMUT<br>");
 	*/
 	
 	 
-	
+	 
 
     /*
     	Our listener helps the background.js to contact
@@ -121,16 +121,19 @@ console.log("Starting SMUT<br>");
 	var toolbarHeightText="32";   // height of tool bar in pixels  was 24, trying 32
 	var toolbarWithBorder="30px"; //	toolbarHeight-2 px (2*1px border)								  
 										  
-	var recentBMColor="#6BA4B8"; 	// Colour: Blue
+	var recentBMColor="#5a96af"; 	// Colour: Blue
 							        // Pantone value: Pantone 549C
 							          // was  #5e99aa before #6BA4B8
+	var recentWidth="60%"; 		    // width of recents on screen. do not set too high or too low
+							          
+							          
 							          
 	var toolbarFontFamily="Helvetica Neue";//"//'"Lato", "Helvetica Neue", Helvetica, Arial, sans-serif';
 					
 					
-	var shieldImage="resource-image://logo32_32.png"; // not used yet, hard coded 
+	var shieldImage="resource-image://smuLogo32_32_new.png"; // resource-image://logo32_32.png 32 x 32 pixel
 	
-	var bookmarkBackground="#D9C89E"; // main bookmarks
+	var bookmarkBackground="rgb(220, 206, 171)";//"#dcceab"; // main bookmarks
 							   		  // shown when shield is clicked
 							          // pantone 7501C  sand
 							          // was  #D9C89E before #53565A
@@ -167,7 +170,7 @@ console.log("Starting SMUT<br>");
 	var fontColor="white";
 	
 	
-	var searchBoxBackground="#D9C89E";  // was white before #D9C89E
+	var searchBoxBackground="#dcceab";  // was white before #D9C89E
 	var searchBoxFontColor="white"; // was black before #862633
 	var searchBoxHeight=(toolbarHeightText/2)+'px';
 	var searchBoxWidth="150px";
@@ -274,7 +277,7 @@ console.log("Starting SMUT<br>");
 				
 					'<div id="bm-search">'+
 						'<div id="form-wrapper" >'+
-							'<input type="text" length="20" id="searchTerm" >'+
+							'<input type="text" maxlength="200" length="20" id="searchTerm" >'+
 							'<input type="submit" id="searchGo" value="Go!" style="">'+
 							'<input type="submit" id="changeDomain" value="\\/" style="">'+
 						'</div>'+
@@ -497,7 +500,7 @@ console.log("Starting SMUT<br>");
 		});	
 		
 		$('#bm-recent-container').css({
-			'width':'40%',
+			'width':recentWidth,
 			'float':'left',
 			'margin-right':'50px',
 			'position':'static',
@@ -792,7 +795,7 @@ console.log("Starting SMUT<br>");
 		
 		/* load the smu shield image */
 		appAPI.resources.createImage(
-        	'<img style="vertical-align:top" id="shieldImage" src="resource-image://logo32_32.png" width="32" height="32" />'
+        	'<img style="vertical-align:top" id="shieldImage" src="'+shieldImage+'" width="32" height="32" />'
     	).appendTo('#smu-shield');
     	
     	
@@ -862,7 +865,16 @@ console.log("Starting SMUT<br>");
 				else
 				{
 					if($("body").length)
-						$("body").css({'right':'0px', 'left':'0px', 'position':'absolute','margin-top':'32px'});
+					{
+						$("body").css({'right':'0px', 'left':'0px', 'position':'absolute'});//'margin-top':'32px !important'});
+						/* 
+							here we edit physical margin with !important. The way we do it creates multiple margin tops if you
+							toggle the toolbar on the same page. The latest margin top is the one that counts. that is why we
+							append the new value after.
+						*/
+						var prev=$("body").attr('style');
+						$("body").attr('style',prev+'margin-top: 32px !important; ');
+					}
 				}
 			}
 			else // toolbar turning off
@@ -878,7 +890,12 @@ console.log("Starting SMUT<br>");
 				else
 				{
 					if($("body").length)
-						$("body").css({'right':'0px', 'left':'0px', 'position':'absolute', 'margin-top':'0px'});		
+					{
+						$("body").css({'right':'0px', 'left':'0px', 'position':'absolute'});//, 'margin-top':'0px'});	
+						var prev=$("body").attr('style');
+						$("body").attr('style',prev+'margin-top: 0px !important; ');
+					
+					}
 				}
 			}
 			
